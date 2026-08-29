@@ -36,6 +36,7 @@ import { BokehSprites, type SpriteSpec } from "./vegetation/BokehSprites";
 import { InstancedPlants } from "./vegetation/InstancedPlants";
 import { addEnvironment } from "./environment";
 import { MECHANICS, type Mechanics, PlantSim } from "./wind/PlantSim";
+import { getPetalAtlas, type AtlasSpecies } from "./flowers/petalTextures";
 import type { QualityTier } from "../config/quality";
 
 interface HeroEntry {
@@ -63,6 +64,24 @@ function mechanicsFor(p: Placement): Mechanics {
       return p.focusRole === "foreground" ? MECHANICS.foregroundMass : MECHANICS.backgroundStalk;
     case "poppyBokeh":
       return MECHANICS.backgroundStalk;
+  }
+}
+
+/** Which painted petal atlas a placement's species uses (none = untextured). */
+function atlasFor(p: Placement): AtlasSpecies | null {
+  switch (p.species) {
+    case "cosmos":
+      return p.tint === palette.violet ? "cosmosViolet" : "cosmosMagenta";
+    case "daisyWhite":
+      return "daisyWhite";
+    case "daisyOrange":
+      return p.tint === palette.yellow ? "daisyYellow" : "daisyOrange";
+    case "bloomMaroon":
+      return "maroonRuffle";
+    case "softBokeh":
+      return p.focusRole === "foreground" ? "softNeutral" : null;
+    default:
+      return null;
   }
 }
 
@@ -102,9 +121,11 @@ export class MeadowScene {
       if (!build) continue;
 
       const micro = p.species === "redCluster" || p.species === "blueMicro" || p.species === "violetMicro";
+      const atlas = atlasFor(p);
       const material = createVegetationMaterial({
         headPivotY: build.headPivotY,
         sss: micro ? 0.25 : 0.65,
+        map: atlas ? getPetalAtlas(atlas).texture : undefined,
       });
       const mesh = new Mesh(build.builder.build(), material);
       mesh.position.set(x, 0, z);
@@ -297,7 +318,15 @@ export class MeadowScene {
         tint: new Color(srgb(rng.pick(tintPool))).multiplyScalar(rng.range(0.55, 1.0)),
       });
     }
-    const sys = new InstancedPlants(buildMidFlowerHead(4242), instances, this.sim, MECHANICS.backgroundStalk, 1.0, 910000);
+    const sys = new InstancedPlants(
+      buildMidFlowerHead(4242),
+      instances,
+      this.sim,
+      MECHANICS.backgroundStalk,
+      1.0,
+      910000,
+      getPetalAtlas("softNeutral").texture,
+    );
     this.scene.add(sys.mesh);
     this.instanced.push(sys);
   }

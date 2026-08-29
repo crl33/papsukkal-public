@@ -7,6 +7,7 @@
  */
 import { Color, Matrix4, Vector3, Euler } from "three";
 import { GeomBuilder } from "./GeomBuilder";
+import { CENTER_CELL, PETAL_CELLS } from "./petalTextures";
 import { createRng, type Rng } from "../../utils/prng";
 import { srgb } from "../shaders/vegetationMaterial";
 import { palette } from "../../config/palette";
@@ -214,6 +215,131 @@ export function addIrregularPetals(b: GeomBuilder, rng: Rng, o: IrregularPetalOp
   }
 }
 
+export interface TexturedPetalOptions {
+  count: number;
+  /** Visible petal length / width (meters). */
+  length: number;
+  width: number;
+  cone: number;
+  cup: number;
+  arch: number;
+  baseRadius: number;
+  flutter?: number;
+  wildness?: number;
+  curl?: number;
+  nu?: number;
+  nv?: number;
+  /** Per-petal luminance variation range (multiplies the painted albedo). */
+  lum?: [number, number];
+  /** Base tint multiplied into the painted albedo (fg masses reuse the
+   * neutral atlas with their own hue). */
+  tint?: Color;
+}
+
+/**
+ * HIGH-FIDELITY petals: simple curved cards mapped onto the painted petal
+ * atlas — the artwork's alpha carries an organic silhouette (serrated,
+ * lobed, ruffled tips) and its albedo carries veins/gradients/mottling.
+ * Per-petal pose keeps the natural irregularity (droop stagger, twist,
+ * curl, uneven spacing); per-petal cell choice + mirroring + luminance
+ * variation kill cloning.
+ */
+export function addTexturedPetals(b: GeomBuilder, rng: Rng, o: TexturedPetalOptions): void {
+  const nu = o.nu ?? 7;
+  const nv = o.nv ?? 3;
+  const wild = o.wildness ?? 0.7;
+  const curlAmt = o.curl ?? 0.5;
+  const lumLo = o.lum?.[0] ?? 0.78;
+  const lumHi = o.lum?.[1] ?? 1.12;
+  // the painted petal spans ~88% of its atlas cell width
+  const cardHalf = (o.width / 0.88) * 0.5;
+
+  const angles: number[] = [];
+  for (let i = 0; i < o.count; i++) {
+    angles.push((i / o.count) * Math.PI * 2 + rng.gauss() * (1.4 / o.count) * wild);
+  }
+
+  for (let i = 0; i < o.count; i++) {
+    const theta = angles[i];
+    const len = o.length * (1 + rng.gauss() * 0.12 * wild);
+    const cone = o.cone + rng.gauss() * 0.22 * wild;
+    const roll = rng.gauss() * 0.2 * wild;
+    const curl = rng.gauss() * curlAmt * wild;
+    const lift = rng.gauss() * 0.012 * wild * len;
+    const baseR = o.baseRadius * (1 + rng.gauss() * 0.15 * wild);
+    const phase = rng.next() * Math.PI * 2;
+    const lum = rng.range(lumLo, lumHi);
+    const cell = PETAL_CELLS[rng.int(0, PETAL_CELLS.length - 1)];
+    const mirror = rng.next() < 0.5 ? -1 : 1;
+    const color = o.tint ? o.tint.clone().multiplyScalar(lum) : new Color(lum, lum, lum);
+
+    _m.makeRotationFromEuler(new Euler(0, -theta, roll, "YXZ"));
+    b.section(_m, () => {
+      const base = b.vertexCount;
+      const pos = new Vector3();
+      const nrm = new Vector3();
+      for (let iu = 0; iu <= nu; iu++) {
+        for (let iv = 0; iv <= nv; iv++) {
+          const u = iu / nu;
+          const va = (iv / nv) * 2 - 1;
+          const x = baseR + u * len;
+          const y =
+            -Math.sin(cone) * u * len +
+            o.arch * Math.sin(u * Math.PI) * len * 0.2 +
+            curl * u * u * len * 0.55 +
+            o.cup * (1 - va * va) * o.width * 0.15 +
+            lift;
+          pos.set(x, y, va * cardHalf);
+          nrm.set(0, 0, 0);
+          b.vertex(
+            pos,
+            nrm,
+            cell.u0 + (0.5 + (va * mirror) / 2) * cell.du,
+            cell.v0 + u * cell.dv,
+            color,
+            { s: 1, head: 1, flutter: (o.flutter ?? 0.45) * u * u, phase, tex: 1 },
+          );
+        }
+      }
+      for (let iu = 0; iu < nu; iu++) {
+        for (let iv = 0; iv < nv; iv++) {
+          const a = base + iu * (nv + 1) + iv;
+          const c2 = base + (iu + 1) * (nv + 1) + iv;
+          b.quad(a, c2, c2 + 1, a + 1);
+        }
+      }
+      b.finishGridNormals(base, nu, nv);
+    });
+  }
+}
+
+/**
+ * Textured flower center: a bulging dome mapped onto the atlas center-disc
+ * artwork (florets/pollen painted), for close-inspection detail.
+ */
+export function addTexturedCenter(
+  b: GeomBuilder,
+  rng: Rng,
+  radius: number,
+  height: number,
+): void {
+  const lum = rng.range(0.95, 1.05);
+  const color = new Color(lum, lum, lum);
+  b.grid(6, 14, (u, v, pos, normal) => {
+    const r = Math.sin(Math.min(1, u * 1.12) * Math.PI * 0.5) * radius;
+    const ang = v * Math.PI * 2;
+    const y = (1 - u * u) * height;
+    pos.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
+    const n = new Vector3(Math.cos(ang) * u, 1.1 * (1 - u * 0.6), Math.sin(ang) * u).normalize();
+    normal.copy(n);
+    return {
+      color,
+      data: { s: 1, head: 1, flutter: 0.04 * u, phase: ang, tex: 1 },
+      uv: [CENTER_CELL.cu + u * CENTER_CELL.r * Math.cos(ang), CENTER_CELL.cv + u * CENTER_CELL.r * Math.sin(ang)] as [number, number],
+    };
+  });
+}
+
 /**
  * A natural flower center: dark bulging cone with a physical stamen ring —
  * small warm blobs seated on the rim, so a tilted head shows the crescent of
@@ -339,36 +465,17 @@ export function buildCosmos(
   diameter: number,
   facing: [number, number, number] = [14, 0, 0],
   detail = 1,
-  variant: "magenta" | "violet" = "magenta",
+  _variant: "magenta" | "violet" = "magenta",
 ): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
   addStem(b, headY, 0.0014 + diameter * 0.006, rng, {});
 
-  // magenta hero vs the deeper purple second bloom of the reference
-  const cMid = variant === "violet" ? srgb("#a637a0") : srgb(palette.magenta);
-  const cHi = variant === "violet" ? srgb("#bd55d0") : srgb(palette.magentaHi);
-  const cDeep = variant === "violet" ? srgb("#5c1670") : srgb(palette.magentaDeep);
-
-  const colorFn = (layerDim: number) => (u: number, va: number, petalIdx: number) => {
-    const c = cDeep
-      .clone()
-      .lerp(cMid, smoothstep01(u * 2.0))
-      .lerp(cHi, smoothstep01((u - 0.42) * 1.7) * 0.7);
-    // striations — veins running the petal's length
-    const stripe = 0.5 + 0.5 * Math.sin(va * 11.5 + petalIdx);
-    c.multiplyScalar(1 - 0.2 * stripe * (1 - u * 0.3));
-    // strong per-petal light variation + darker inner region
-    const petalLum = 0.6 + 0.38 * (0.5 + 0.5 * Math.sin(petalIdx * 12.9898 + seed));
-    c.multiplyScalar(petalLum * layerDim);
-    c.multiplyScalar(0.56 + 0.44 * smoothstep01(u * 2.6)); // dark throat
-    c.multiplyScalar(0.9 + 0.1 * Math.abs(va));
-    return c;
-  };
-
+  // variant selects the painted atlas (magenta hero vs violet second bloom)
+  // — see MeadowScene, which attaches the matching petal artwork
   headSection(b, headY, facing, () => {
     // back layer: fewer, longer, droopier, in shadow
-    addIrregularPetals(b, rng, {
+    addTexturedPetals(b, rng, {
       count: 6,
       length: diameter * 0.44,
       width: diameter * 0.27,
@@ -376,41 +483,52 @@ export function buildCosmos(
       cup: 0.5,
       arch: 0.7,
       baseRadius: diameter * 0.07,
-      nu: Math.round(8 * detail) + 2,
-      nv: Math.round(5 * detail) + 1,
+      nu: Math.round(6 * detail) + 2,
+      nv: 3,
       wildness: 0.85,
       curl: 0.35,
       flutter: 0.45,
-      colorFn: colorFn(0.6),
+      lum: [0.62, 0.88],
     });
     // front layer: the readable petals
-    addIrregularPetals(b, rng, {
-      count: 8,
+    addTexturedPetals(b, rng, {
+      count: 9,
       length: diameter * 0.395,
-      width: diameter * 0.275,
+      width: diameter * 0.28,
       cone: 0.22,
       cup: 0.55,
       arch: 0.85,
-      baseRadius: diameter * 0.065,
-      nu: Math.round(9 * detail) + 2,
-      nv: Math.round(6 * detail) + 1,
-      wildness: 0.75,
+      baseRadius: diameter * 0.055,
+      nu: Math.round(7 * detail) + 2,
+      nv: 3,
+      wildness: 0.72,
       curl: 0.5,
       flutter: 0.45,
-      colorFn: colorFn(1),
+      lum: [0.8, 1.12],
     });
-    addNaturalCenter(
-      b,
-      rng,
-      diameter * 0.095,
-      diameter * 0.07,
-      srgb("#232c5e"),
-      srgb(palette.daisyCenter),
-      srgb("#f59a1e"),
-    );
+    addTexturedCenter(b, rng, diameter * 0.1, diameter * 0.07);
+    // physical stamens on the rim for parallax over the painted disc
+    const stamen = srgb(palette.daisyCenter);
+    const stamenHot = srgb("#f59a1e");
+    const n = rng.int(8, 11);
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + rng.range(-0.12, 0.12);
+      const rr = diameter * 0.1 * rng.range(0.66, 0.8);
+      addBlob(
+        b,
+        new Vector3(Math.cos(ang) * rr, diameter * 0.07 * rng.range(0.6, 0.85), Math.sin(ang) * rr),
+        diameter * rng.range(0.011, 0.015),
+        0.8,
+        varied(stamen.clone().lerp(stamenHot, rng.next()), rng, 0.05),
+        1,
+        0.05,
+        ang,
+        1,
+      );
+    }
   });
 
-  // feathery leaves low on the stem
+    // feathery leaves low on the stem
   const leaves = rng.int(2, 3);
   for (let i = 0; i < leaves; i++) {
     addLeaf(b, rng, headY * rng.range(0.25, 0.6), headY, diameter * rng.range(0.5, 0.8), diameter * 0.05, srgb(palette.foliageTeal));
@@ -429,16 +547,12 @@ export function buildDaisy(
   const b = new GeomBuilder();
   addStem(b, headY, 0.0012 + diameter * 0.005, rng, {});
 
-  const white = srgb(palette.white);
-  const orange = srgb(palette.orange);
-  const yellow = srgb(palette.yellow);
   const petalCount = variant === "white" ? rng.int(15, 19) : rng.int(11, 13);
-
   headSection(b, headY, facing, () => {
-    addIrregularPetals(b, rng, {
+    addTexturedPetals(b, rng, {
       count: petalCount,
-      length: diameter * 0.40,
-      width: diameter * (variant === "white" ? 0.10 : 0.17),
+      length: diameter * 0.4,
+      width: diameter * (variant === "white" ? 0.11 : 0.17),
       cone: 0.18,
       cup: 0.35,
       arch: 0.5,
@@ -448,24 +562,9 @@ export function buildDaisy(
       wildness: 0.5,
       curl: 0.3,
       flutter: 0.5,
-      colorFn: (u, _va, petalIdx) => {
-        const petalLum = 0.88 + 0.2 * (0.5 + 0.5 * Math.sin(petalIdx * 7.31 + 1.7));
-        if (variant === "white") {
-          // creamy whites: shadowed base, bright blade
-          return white
-            .clone()
-            .lerp(srgb("#cdbf9d"), (1 - smoothstep01(u * 2.6)) * 0.5)
-            .multiplyScalar((0.72 + 0.38 * smoothstep01(u * 1.6)) * petalLum);
-        }
-        if (variant === "yellow")
-          return yellow.clone().lerp(orange, smoothstep01((u - 0.35) * 1.2) * 0.5).multiplyScalar(petalLum);
-        // orange daisy: yellow glow at the petal base, saturated orange blade
-        return orange.clone().lerp(yellow, (1 - smoothstep01(u * 2.4)) * 0.55).multiplyScalar(petalLum);
-      },
+      lum: variant === "white" ? [0.82, 1.08] : [0.78, 1.1],
     });
-    const centerCol = variant === "white" ? srgb(palette.daisyCenter) : srgb(palette.daisyCenterNavy);
-    const rimCol = variant === "white" ? srgb("#c98f10") : srgb("#27356b");
-    addCenterDome(b, diameter * 0.10, diameter * 0.06, (r) => centerCol.clone().lerp(rimCol, r * r));
+    addTexturedCenter(b, rng, diameter * 0.1, diameter * 0.06);
   });
   return { builder: b, headPivotY: headY };
 }
@@ -508,32 +607,26 @@ export function buildMaroonBloom(
   const rng = createRng(seed);
   const b = new GeomBuilder();
   addStem(b, headY, 0.0018 + diameter * 0.008, rng, {});
-  const maroon = srgb(palette.maroon);
-  const red = srgb(palette.crimson);
   headSection(b, headY, facing, () => {
     for (let layer = 0; layer < 3; layer++) {
       const lf = layer / 2;
-      addIrregularPetals(b, rng, {
+      addTexturedPetals(b, rng, {
         count: 9 + layer,
         length: diameter * 0.5 * (1 - lf * 0.45),
-        width: diameter * 0.24 * (1 - lf * 0.25),
-        cone: 0.15 - lf * 0.45, // inner layers cup upward
+        width: diameter * 0.25 * (1 - lf * 0.25),
+        cone: 0.15 - lf * 0.45,
         cup: 0.9,
         arch: 1.1,
         baseRadius: diameter * 0.04,
-        nu: 4,
+        nu: 5,
         nv: 2,
         wildness: 0.9,
         curl: 0.45,
         flutter: 0.3,
-        colorFn: (u, _va, petalIdx) =>
-          maroon
-            .clone()
-            .lerp(red, smoothstep01(u * 1.3) * 0.5)
-            .multiplyScalar((0.5 + 0.45 * u) * (0.8 + 0.35 * (0.5 + 0.5 * Math.sin(petalIdx * 7.7)))),
+        lum: [0.55 + lf * 0.25, 0.9 + lf * 0.25],
       });
     }
-    addCenterDome(b, diameter * 0.08, diameter * 0.05, () => srgb("#2e070b"));
+    addTexturedCenter(b, rng, diameter * 0.08, diameter * 0.05);
   });
   return { builder: b, headPivotY: headY };
 }
@@ -640,20 +733,22 @@ export function buildMidFlowerHead(seed: number): PlantBuild {
   const b = new GeomBuilder();
   const d = 0.16;
   headSection(b, 1.0, [rng.range(30, 80), rng.range(0, 360), 0], () => {
-    addPetalRing(b, rng, {
+    addTexturedPetals(b, rng, {
       count: rng.int(6, 8),
       length: d * 0.45,
-      width: d * 0.3,
+      width: d * 0.31,
       cone: 0.35,
       cup: 0.5,
       arch: 0.7,
       baseRadius: d * 0.05,
-      nu: 3,
-      nv: 1,
+      nu: 4,
+      nv: 2,
+      wildness: 0.65,
+      curl: 0.35,
       flutter: 0.4,
-      colorFn: (u) => new Color(1, 1, 1).multiplyScalar(0.65 + 0.45 * smoothstep01(u)),
+      lum: [0.78, 1.18],
     });
-    addCenterDome(b, d * 0.1, d * 0.06, () => new Color(0.32, 0.28, 0.3));
+    addTexturedCenter(b, rng, d * 0.09, d * 0.055);
   });
   return { builder: b, headPivotY: 1.0 };
 }
@@ -883,10 +978,11 @@ export function buildForegroundMass(
   const rng = createRng(seed);
   const b = new GeomBuilder();
   addStem(b, headY, diameter * 0.018, rng, { bow: rng.range(0.02, 0.06) });
-  const cBase = srgb(tint);
-  const cLite = srgb(tint).offsetHSL(0, 0.02, 0.12);
+  // the neutral atlas mid-tones sit ~0.85; boost so masses stay luminous
+  // through the heavy near-field defocus
+  const cBase = srgb(tint).multiplyScalar(1.45);
   headSection(b, headY, [rng.range(45, 85), rng.range(-40, 40), 0], () => {
-    addPetalRing(b, rng, {
+    addTexturedPetals(b, rng, {
       count: rng.int(6, 8),
       length: diameter * 0.42,
       width: diameter * 0.34,
@@ -894,12 +990,15 @@ export function buildForegroundMass(
       cup: 0.5,
       arch: 0.9,
       baseRadius: diameter * 0.06,
-      nu: 3,
+      nu: 4,
       nv: 2,
+      wildness: 0.7,
+      curl: 0.35,
       flutter: 0.35,
-      colorFn: (u, va) => cBase.clone().lerp(cLite, smoothstep01(u) * 0.8).multiplyScalar(1 - 0.1 * Math.abs(va)),
+      lum: [0.95, 1.35],
+      tint: cBase,
     });
-    addCenterDome(b, diameter * 0.12, diameter * 0.07, () => cBase.clone().multiplyScalar(0.55));
+    addTexturedCenter(b, rng, diameter * 0.11, diameter * 0.06);
   });
   return { builder: b, headPivotY: headY };
 }

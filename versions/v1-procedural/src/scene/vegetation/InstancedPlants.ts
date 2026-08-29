@@ -11,6 +11,7 @@ import {
   InstancedMesh,
   Matrix4,
   ShaderMaterial,
+  Texture,
   Vector3,
 } from "three";
 import type { PlantBuild } from "../flowers/species";
@@ -43,9 +44,10 @@ export class InstancedPlants {
     mech: Mechanics,
     heightScaleBase: number,
     seedBase: number,
+    map?: Texture,
   ) {
     const geo = build.builder.build();
-    this.material = createVegetationMaterial({ instanced: true, headPivotY: build.headPivotY });
+    this.material = createVegetationMaterial({ instanced: true, headPivotY: build.headPivotY, map });
     const mesh = new InstancedMesh(geo, this.material, instances.length);
 
     const tints = new Float32Array(instances.length * 3);

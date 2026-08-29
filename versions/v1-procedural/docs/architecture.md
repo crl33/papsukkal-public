@@ -136,6 +136,23 @@ heroes consume it as uniforms, instanced systems as instanced attributes.
 - **Micro flutter**: petal/leaf shimmer along vertex normals, amplitude
   scaled by the local gust value, phases de-synchronized as above.
 
+## Botanical asset stage (`petalTextures.ts`)
+
+Original high-fidelity petal artwork, generated specifically for Papsukkal:
+each hero species owns a seeded, deterministically painted 1024² atlas —
+four petal variants (organic alpha silhouettes with serrated/lobed/ruffled
+tips, base→tip color ramps, branching veins, lateral shading, luminous rim,
+mottling) plus a painted center disc (navy floret rings with stamens, or
+pollen granules). The petal mesh becomes a simple curved card; the painted
+alpha carries the silhouette, so petals have real ragged organic edges at any
+zoom. Vertices flag `aTexFlag=1` to sample the species atlas (albedo ×
+per-petal luminance variation, alpha-cut edges); stems, buds and sprigs
+stay vertex-colored. Cell layout constants are DOM-free so geometry
+builders and tests run headless; the painting itself happens once at
+startup (same pattern as the backdrop). Physical stamen beads remain 3D on
+the cosmos rim for parallax over the painted disc. The reference remains
+measurement/art-direction only — every texel is original painted artwork.
+
 ## Rendering tiers
 
 - **Heroes** (~38 meshes): individually built geometry, unique art

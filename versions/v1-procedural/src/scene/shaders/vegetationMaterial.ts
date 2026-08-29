@@ -27,6 +27,7 @@ import {
   DoubleSide,
   ShaderMaterial,
   SRGBColorSpace,
+  Texture,
   Vector2,
   Vector3,
   Vector4,
@@ -68,6 +69,7 @@ const GLSL_HELPERS = /* glsl */ `
 const VERT = /* glsl */ `
   attribute vec4 aData;
   attribute vec3 aColor;
+  attribute float aTexFlag;
   #ifdef INSTANCED_BEND
     attribute vec4 iBend;
     attribute float iGust;
@@ -88,6 +90,7 @@ const VERT = /* glsl */ `
   varying float vHeadFlag;
   varying float vFlutter;
   varying float vPhase;
+  varying float vTexFlag;
   varying vec2 vUv;
 
   ${GLSL_HELPERS}
@@ -169,12 +172,16 @@ const VERT = /* glsl */ `
     vHeadFlag = isHead;
     vFlutter = aData.z;
     vPhase = aData.w;
+    vTexFlag = aTexFlag;
     vUv = uv;
     gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
   }
 `;
 
 const FRAG = /* glsl */ `
+  #ifdef USE_PETAL_MAP
+    uniform sampler2D uMap;
+  #endif
   uniform vec3 uLightDir;
   uniform vec3 uLightCol;
   uniform vec3 uSkyCol;
@@ -189,6 +196,7 @@ const FRAG = /* glsl */ `
   varying float vHeadFlag;
   varying float vFlutter;
   varying float vPhase;
+  varying float vTexFlag;
   varying vec2 vUv;
 
   float hash12(vec2 p) {
@@ -198,6 +206,17 @@ const FRAG = /* glsl */ `
   }
 
   void main() {
+    // painted petal artwork: albedo + organic alpha silhouette from the
+    // species atlas; vColor carries per-petal luminance/tint variation
+    vec3 albedo = vColor;
+    float texFlag = 0.0;
+    #ifdef USE_PETAL_MAP
+      vec4 texel = texture2D(uMap, vUv);
+      texFlag = vTexFlag;
+      albedo = mix(vColor, texel.rgb * vColor, texFlag);
+      if (texFlag > 0.5 && texel.a < 0.45) discard;
+    #endif
+
     vec3 N = normalize(vNormalW);
     if (!gl_FrontFacing) N = -N;
     vec3 L = normalize(uLightDir);
@@ -213,11 +232,11 @@ const FRAG = /* glsl */ `
     float bloomF = smoothstep(0.32, 0.5, vFlutter) * 0.85 * (1.0 - vHeadFlag);
     vec3 lit = hemi * 0.5 + uLightCol * (diff * 0.95 + sss * 0.55);
     vec3 flatLit = uLightCol * 0.58 + uSkyCol * 0.12;
-    vec3 col = vColor * mix(lit, flatLit, bloomF);
+    vec3 col = albedo * mix(lit, flatLit, bloomF);
 
     // organic petal surface: fine static grain + soft cell mottling breaks
     // the airbrushed flatness of procedural color under close inspection
-    if (vHeadFlag > 0.5) {
+    if (vHeadFlag > 0.5 && texFlag < 0.5) {
       float grain = hash12(floor(vUv * 96.0) + vPhase * 100.0);
       float mottle = hash12(floor(vUv * vec2(7.0, 16.0)) + vPhase * 37.0);
       col *= 0.94 + 0.06 * grain + 0.06 * mottle;
@@ -245,6 +264,9 @@ export interface VegetationMaterialOptions {
   /** Translucency strength for petals. */
   sss?: number;
   microAmp?: number;
+  /** Species petal atlas (see petalTextures.ts) — vertices with aTexFlag=1
+   * sample it for albedo + alpha silhouette. */
+  map?: Texture;
 }
 
 export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): ShaderMaterial {
@@ -267,8 +289,12 @@ export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): 
       uSss: { value: opts.sss ?? 0.85 },
     },
   });
-  if (opts.instanced) {
-    mat.defines = { INSTANCED_BEND: 1 };
+  const defines: Record<string, number> = {};
+  if (opts.instanced) defines.INSTANCED_BEND = 1;
+  if (opts.map) {
+    defines.USE_PETAL_MAP = 1;
+    mat.uniforms.uMap = { value: opts.map };
   }
+  mat.defines = defines;
   return mat;
 }

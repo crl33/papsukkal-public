@@ -11,6 +11,8 @@ export interface VertexData {
   head: number;
   flutter: number;
   phase: number;
+  /** 1 = sample the species petal atlas (uv meaningful), 0 = vertex color. */
+  tex?: number;
 }
 
 export class GeomBuilder {
@@ -19,6 +21,7 @@ export class GeomBuilder {
   private uvs: number[] = [];
   private colors: number[] = [];
   private data: number[] = [];
+  private texFlags: number[] = [];
   private indices: number[] = [];
 
   get vertexCount(): number {
@@ -31,6 +34,7 @@ export class GeomBuilder {
     this.uvs.push(u, v);
     this.colors.push(c.r, c.g, c.b);
     this.data.push(d.s, d.head, d.flutter, d.phase);
+    this.texFlags.push(d.tex ?? 0);
     return this.vertexCount - 1;
   }
 
@@ -44,12 +48,19 @@ export class GeomBuilder {
 
   /**
    * Add a parametric grid surface. fn(u, v) fills pos (and may fill normal;
-   * if normal is left at 0 it is computed from the grid afterwards).
+   * if normal is left at 0 it is computed from the grid afterwards). The
+   * callback may return an explicit `uv` (e.g. atlas-mapped artwork);
+   * otherwise the grid coordinates are used.
    */
   grid(
     nu: number,
     nv: number,
-    fn: (u: number, v: number, pos: Vector3, normal: Vector3) => { color: Color; data: VertexData },
+    fn: (
+      u: number,
+      v: number,
+      pos: Vector3,
+      normal: Vector3,
+    ) => { color: Color; data: VertexData; uv?: [number, number] },
   ): void {
     const base = this.vertexCount;
     const p = new Vector3();
@@ -60,8 +71,8 @@ export class GeomBuilder {
         const v = iv / nv;
         p.set(0, 0, 0);
         n.set(0, 0, 0);
-        const { color, data } = fn(u, v, p, n);
-        this.vertex(p, n, u, v, color, data);
+        const { color, data, uv } = fn(u, v, p, n);
+        this.vertex(p, n, uv ? uv[0] : u, uv ? uv[1] : v, color, data);
       }
     }
     for (let iu = 0; iu < nu; iu++) {
@@ -72,6 +83,11 @@ export class GeomBuilder {
       }
     }
     // grid normals via finite differences if fn left them zeroed
+    this.computeGridNormals(base, nu, nv);
+  }
+
+  /** Public normal finisher for externally-pushed grids (textured petals). */
+  finishGridNormals(base: number, nu: number, nv: number): void {
     this.computeGridNormals(base, nu, nv);
   }
 
@@ -131,6 +147,7 @@ export class GeomBuilder {
     g.setAttribute("uv", new BufferAttribute(new Float32Array(this.uvs), 2));
     g.setAttribute("aColor", new BufferAttribute(new Float32Array(this.colors), 3));
     g.setAttribute("aData", new BufferAttribute(new Float32Array(this.data), 4));
+    g.setAttribute("aTexFlag", new BufferAttribute(new Float32Array(this.texFlags), 1));
     g.setIndex(this.indices);
     g.computeBoundingSphere();
     return g;
