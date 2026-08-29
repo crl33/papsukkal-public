@@ -76,6 +76,27 @@ const PREFILTER_FRAG = /* glsl */ `
   }
 `;
 
+/**
+ * NEAR-FIELD prefilter: the foreground layer alone, PREMULTIPLIED by its
+ * circle of confusion. Blurring premultiplied colour + coverage together and
+ * compositing the result OVER the far-field image is what stops a defocused
+ * foreground from tinting the sharp midground behind it: where no near
+ * geometry exists the coverage is zero, so those pixels are left untouched.
+ */
+const PREFILTER_NEAR_FRAG = /* glsl */ `
+  uniform sampler2D inputBuffer;
+  varying vec2 vUv;
+  ${COC_GLSL}
+  void main() {
+    vec3 c = texture2D(inputBuffer, vUv).rgb;
+    float near = cocAt(vUv).x;
+    // sharpen the coverage ramp so partially-defocused midground plants do
+    // not register as "foreground" and smear over their neighbours
+    near = smoothstep(0.16, 0.62, near);
+    gl_FragColor = vec4(c * near, near);
+  }
+`;
+
 const KAWASE_FRAG = /* glsl */ `
   uniform sampler2D inputBuffer;
   uniform vec2 texelSize;
@@ -98,6 +119,7 @@ const COMPOSITE_FRAG = /* glsl */ `
   uniform sampler2D blurB;
   uniform sampler2D blurC;
   uniform sampler2D blurD;
+  uniform sampler2D blurNear;
   varying vec2 vUv;
   ${COC_GLSL}
 
@@ -108,22 +130,36 @@ const COMPOSITE_FRAG = /* glsl */ `
     vec4 dd = texture2D(blurD, vUv);
 
     vec2 coc = cocAt(vUv);
-    // near-field CoC dilated through the blur pyramid — foreground softness
-    // spills over the focus plane like a real lens
-    float nearSpread = max(max(bb.a, cc.a), dd.a);
-    float w = max(coc.y, max(coc.x, nearSpread));
 
+    // ---- FAR FIELD: this pixel's own defocus, by its own CoC only ----
+    float w = coc.y;
     vec3 c = texture2D(inputBuffer, vUv).rgb;
     c = mix(c, a.rgb, smoothstep(0.0, 0.22, w));
     c = mix(c, bb.rgb, smoothstep(0.18, 0.45, w));
     c = mix(c, cc.rgb, smoothstep(0.4, 0.75, w));
-    // the widest, creamiest level is mostly reserved for the NEAR field:
-    // real lenses render foreground defocus creamier than background. The far
-    // field caps at C (structured bokeh discs, not fog) except the very
-    // deepest layer, which blends partway toward D.
-    float wNear = max(coc.x, nearSpread);
+    // the far field caps at C (distant flowers stay structured bokeh, not
+    // fog); only the very deepest layer drifts toward the creamiest level
     c = mix(c, dd.rgb, smoothstep(0.75, 1.0, coc.y) * 0.55);
-    c = mix(c, dd.rgb, smoothstep(0.6, 0.95, wNear));
+
+    // A near-field pixel must never keep its own sharpness: gather DOF still
+    // holds the foreground object in the base layer, so blur the base by the
+    // pixel's OWN near CoC before the scatter layer goes over it. Without
+    // this, a small near flower shows crisp petals through a faint smear.
+    c = mix(c, dd.rgb, smoothstep(0.12, 0.62, coc.x));
+
+    // ---- NEAR FIELD: foreground scatter composited OVER ----
+    // The blurred layer is premultiplied, so dividing by its own coverage
+    // recovers the true average colour of the contributing foreground
+    // pixels — creamy, and with no dark fringe at the silhouette.
+    // The coverage ramp is then SATURATED: interiors go fully to the blurred
+    // foreground (so a near mass reads as a soft smear, never a sharp
+    // flower), while the faint wide tail is cut to zero, so the defocused
+    // foreground can occlude the midground but never tint it.
+    vec4 nearLayer = texture2D(blurNear, vUv);
+    float nearRaw = clamp(nearLayer.a, 0.0, 1.0);
+    vec3 nearCol = nearLayer.rgb / max(nearRaw, 1e-3);
+    float nearA = smoothstep(0.10, 0.46, nearRaw);
+    c = mix(c, nearCol, nearA);
 
     gl_FragColor = vec4(c, 1.0);
   }
@@ -151,6 +187,7 @@ function makeRT(w: number, h: number): WebGLRenderTarget {
 
 export class CinematicDofPass extends Pass {
   private prefilterMat: ShaderMaterial;
+  private prefilterNearMat: ShaderMaterial;
   private kawaseMat: ShaderMaterial;
   private compositeMat: ShaderMaterial;
 
@@ -162,6 +199,12 @@ export class CinematicDofPass extends Pass {
   private rtC!: WebGLRenderTarget;
   private rtDPing!: WebGLRenderTarget;
   private rtD!: WebGLRenderTarget;
+  /** near-field premultiplied layer (half → … → sixteenth). The foreground
+   * masses span hundreds of pixels, so the near kernel has to be enormous
+   * before they read as creamy smears rather than blurred petals. */
+  private rtNPre!: WebGLRenderTarget;
+  private rtNPing!: WebGLRenderTarget;
+  private rtNear!: WebGLRenderTarget;
 
   private w = 2;
   private h = 2;
@@ -178,12 +221,16 @@ export class CinematicDofPass extends Pass {
       cameraNear: new Uniform(cameraConfig.near),
       cameraFar: new Uniform(cameraConfig.far),
       focusDistance: new Uniform(cameraConfig.focusDistance),
-      deadZone: new Uniform(0.12),
+      deadZone: new Uniform(0.085),
       nearScale: new Uniform(1.7),
-      farScale: new Uniform(1.8),
+      farScale: new Uniform(2.3),
     });
 
     this.prefilterMat = makeMat(PREFILTER_FRAG, {
+      inputBuffer: new Uniform(null),
+      ...cocUniforms(),
+    });
+    this.prefilterNearMat = makeMat(PREFILTER_NEAR_FRAG, {
       inputBuffer: new Uniform(null),
       ...cocUniforms(),
     });
@@ -198,6 +245,7 @@ export class CinematicDofPass extends Pass {
       blurB: new Uniform(null),
       blurC: new Uniform(null),
       blurD: new Uniform(null),
+      blurNear: new Uniform(null),
       ...cocUniforms(),
     });
 
@@ -228,11 +276,12 @@ export class CinematicDofPass extends Pass {
       [dim(sw, 2), dim(sh, 2)],
       [dim(sw, 4), dim(sh, 4)],
       [dim(sw, 8), dim(sh, 8)],
+      [dim(sw, 16), dim(sh, 16)],
     ];
   }
 
   private allocate(): void {
-    const [[w2, h2], [w4, h4], [w8, h8]] = this.pyramidSizes();
+    const [[w2, h2], [w4, h4], [w8, h8], [sw16, sh16]] = this.pyramidSizes();
     this.rtPre = makeRT(w2, h2);
     this.rtPing = makeRT(w2, h2);
     this.rtA = makeRT(w2, h2);
@@ -241,6 +290,11 @@ export class CinematicDofPass extends Pass {
     this.rtC = makeRT(w4, h4);
     this.rtDPing = makeRT(w8, h8);
     this.rtD = makeRT(w8, h8);
+    void sw16;
+    void sh16;
+    this.rtNPre = makeRT(w2, h2);
+    this.rtNPing = makeRT(w8, h8);
+    this.rtNear = makeRT(w8, h8);
   }
 
   override setSize(width: number, height: number): void {
@@ -252,10 +306,13 @@ export class CinematicDofPass extends Pass {
     for (const rt of [this.rtPre, this.rtPing, this.rtA, this.rtB]) rt.setSize(w2, h2);
     for (const rt of [this.rtCPing, this.rtC]) rt.setSize(w4, h4);
     for (const rt of [this.rtDPing, this.rtD]) rt.setSize(w8, h8);
+    this.rtNPre.setSize(w2, h2);
+    for (const rt of [this.rtNPing, this.rtNear]) rt.setSize(w8, h8);
   }
 
   override setDepthTexture(depthTexture: Texture): void {
     this.prefilterMat.uniforms.depthBuffer.value = depthTexture;
+    this.prefilterNearMat.uniforms.depthBuffer.value = depthTexture;
     this.compositeMat.uniforms.depthBuffer.value = depthTexture;
   }
 
@@ -297,13 +354,27 @@ export class CinematicDofPass extends Pass {
     this.kawase(renderer, this.rtC, this.rtDPing, 1.5);
     this.kawase(renderer, this.rtDPing, this.rtD, 2.5);
 
-    // 3. composite by circle of confusion
+    // 3. near-field layer: premultiplied foreground, blurred widest. The
+    //    far pyramid is finished by now, so its ping targets are free scratch.
+    this.prefilterNearMat.uniforms.inputBuffer.value = inputBuffer.texture;
+    this.blit(renderer, this.prefilterNearMat, this.rtNPre);
+    // the far pyramid is finished, so its ping targets are free scratch
+    this.kawase(renderer, this.rtNPre, this.rtPing, 1);
+    this.kawase(renderer, this.rtPing, this.rtNPre, 2);
+    this.kawase(renderer, this.rtNPre, this.rtCPing, 1.5);
+    this.kawase(renderer, this.rtCPing, this.rtNPing, 1.5);
+    this.kawase(renderer, this.rtNPing, this.rtNear, 2.5);
+    this.kawase(renderer, this.rtNear, this.rtNPing, 3.0);
+    this.kawase(renderer, this.rtNPing, this.rtNear, 2.0);
+
+    // 4. composite by circle of confusion
     const u = this.compositeMat.uniforms;
     u.inputBuffer.value = inputBuffer.texture;
     u.blurA.value = this.rtA.texture;
     u.blurB.value = this.rtB.texture;
     u.blurC.value = this.rtC.texture;
     u.blurD.value = this.rtD.texture;
+    u.blurNear.value = this.rtNear.texture;
     this.blit(renderer, this.compositeMat, this.renderToScreen ? null : outputBuffer);
   }
 }

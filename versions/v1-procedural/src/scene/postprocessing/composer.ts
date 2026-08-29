@@ -76,9 +76,9 @@ export class GradeEffect extends Effect {
       uniforms: new Map<string, Uniform>([
         ["shadowTint", new Uniform(new Vector3(0.62, 0.85, 1.0))],
         ["saturation", new Uniform(1.14)],
-        ["vignette", new Uniform(0.42)],
+        ["vignette", new Uniform(0.5)],
         ["grain", new Uniform(0.008)],
-        ["contrast", new Uniform(1.06)],
+        ["contrast", new Uniform(1.2)],
         ["grainTime", new Uniform(0)],
       ]),
     });

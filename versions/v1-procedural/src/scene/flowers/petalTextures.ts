@@ -156,7 +156,7 @@ function pollenCenter(base: string, dark: string) {
 const STYLES: Record<AtlasSpecies, SpeciesStyle> = {
   cosmosMagenta: {
     seed: "cosmos-magenta",
-    ramp: ["#4a0c33", "#8e1766", "#c2258f", "#d63aa4", "#ef6cc4"],
+    ramp: ["#3d0824", "#8a1258", "#bc1a80", "#d02c92", "#e654ab"],
     vein: "#5e0f45",
     veinAlpha: 0.4,
     veinCount: [9, 13],

@@ -230,7 +230,7 @@ export class MeadowScene {
       buildWiryStem(9001), buildWiryStem(9002), buildWiryStem(9003), buildWiryStem(9004),
       buildWiryStem(9005), buildWiryStem(9006), buildWiryStem(9007),
     ];
-    const perVariant = Math.floor(38 * quality.vegetationDensity);
+    const perVariant = Math.floor(23 * quality.vegetationDensity);
     stemVariants.forEach((variant, vi) => {
       const instances = [];
       let guard = 0;
@@ -242,9 +242,12 @@ export class MeadowScene {
         if (yTop < 0.14 || yTop > 1.05) continue;
         instances.push({
           position: new Vector3(x, 0, z),
-          scale: yTop, // unit-height geometry → head lands where sampled
+          // partial stems: shorter than the sampled head height so they read
+          // as fragments in a tangle, not full-height rods
+          scale: yTop * (0.4 + 0.35 * rng.next()),
           yaw: rng.range(0, Math.PI * 2),
-          tilt: rng.range(0, 0.18),
+          tilt: rng.range(-0.16, 0.3),
+          tiltZ: rng.gauss() * 0.16,
           tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.45, 1.0)),
         });
       }
@@ -255,7 +258,7 @@ export class MeadowScene {
 
     // feathery filigree clumps near the focus band
     const featherVariants = [buildFeatherClump(9101), buildFeatherClump(9102)];
-    const perFeather = Math.floor(15 * quality.vegetationDensity);
+    const perFeather = Math.floor(40 * quality.vegetationDensity);
     featherVariants.forEach((variant, vi) => {
       const instances = [];
       let guard = 0;
@@ -268,8 +271,9 @@ export class MeadowScene {
           position: new Vector3(x, 0, z),
           scale: yTop / 0.5,
           yaw: rng.range(0, Math.PI * 2),
-          tilt: rng.range(0, 0.15),
-          tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.6, 1.1)),
+          tilt: rng.range(-0.14, 0.26),
+          tiltZ: rng.gauss() * 0.14,
+          tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.42, 0.8)),
         });
       }
       const sys = new InstancedPlants(variant, instances, this.sim, MECHANICS.microSprig, 0.5, 905000 + vi * 1000);
@@ -279,6 +283,44 @@ export class MeadowScene {
 
     this.addMidFlowers(quality);
     this.addFoliageTufts(quality);
+    this.addBackFoliage(quality);
+  }
+
+  /**
+   * Defocused foliage mass filling 2.4–6 m. The reference has no visible
+   * "ground": the space between sharp plants is more vegetation, softened by
+   * distance. This replaces a flat lit plane with real botanical texture —
+   * redistribution, not a denser meadow.
+   */
+  private addBackFoliage(quality: QualityTier): void {
+    const rng = createRng(SCATTER_SEED ^ 0x3c3c);
+    const count = Math.floor(150 * quality.vegetationDensity);
+    const instances = [];
+    for (let i = 0; i < count; i++) {
+      const z = -rng.range(1.55, 3.1);
+      const x = rng.range(-1.2, 1.2) * (0.3 + (-z) * 0.38);
+      const [, yTop] = [0, rng.range(0.15, 1.15)];
+      instances.push({
+        // lifted into the lit band: this is mid-height foliage seen through
+        // other plants, not litter on the soil
+        position: new Vector3(x, rng.range(0.06, 0.34), z),
+        scale: rng.range(2.0, 4.6),
+        yaw: rng.range(0, Math.PI * 2),
+        tilt: rng.range(-0.2, 0.35),
+        tiltZ: rng.gauss() * 0.2,
+        // sunlit, defocused: this mass IS the midground's luminosity in the
+        // reference — and it is NOT uniformly teal. Warm olives and dusty
+        // rose keep the band from reading as one green wash.
+        // reference samples of the defocused midground are muted olive-sage
+        // (~rgb 64,83,66), not saturated green
+        tint: new Color(
+          srgb(rng.pick(["#5f6d58", "#4e6154", "#6a7160", "#556b5c", "#7a7358", "#6b5a50"])),
+        ).multiplyScalar(rng.range(10.0, 17.0) * (0.7 + 0.3 * yTop)),
+      });
+    }
+    const sys = new InstancedPlants(buildFoliageTuft(6161), instances, this.sim, MECHANICS.backgroundStalk, 0.35, 930000);
+    this.scene.add(sys.mesh);
+    this.instanced.push(sys);
   }
 
   /** Soft colored blooms at 1.8–3.8m — the reference's deep botanical density. */
@@ -304,7 +346,7 @@ export class MeadowScene {
     while (instances.length < count && attempts++ < count * 8) {
       const z = -rng.range(2.35, 4.0);
       const x = rng.range(-1.15, 1.15) * (0.32 + (-z) * 0.36);
-      const scale = rng.range(0.3, 0.74);
+      const scale = rng.range(0.2, 0.5);
       // project the head to reference-screen space and respect exclusions
       const hh = (-z) * Math.tan((11 * Math.PI) / 180);
       const sx = (x / (hh * 1.51)) * 0.5 + 0.5;
@@ -315,7 +357,7 @@ export class MeadowScene {
         scale,
         yaw: rng.range(0, Math.PI * 2),
         tilt: rng.range(0, 0.25),
-        tint: new Color(srgb(rng.pick(tintPool))).multiplyScalar(rng.range(0.55, 1.0)),
+        tint: new Color(srgb(rng.pick(tintPool))).multiplyScalar(rng.range(0.42, 0.82)),
       });
     }
     const sys = new InstancedPlants(
@@ -334,16 +376,16 @@ export class MeadowScene {
   /** Dark leafy tufts along the meadow floor, close to the focus band. */
   private addFoliageTufts(quality: QualityTier): void {
     const rng = createRng(SCATTER_SEED ^ 0x1234);
-    const count = Math.floor(85 * quality.vegetationDensity);
+    const count = Math.floor(100 * quality.vegetationDensity);
     const instances = [];
     for (let i = 0; i < count; i++) {
       const z = -rng.range(0.9, 2.0);
       const x = rng.range(-1.2, 1.2) * (0.3 + (-z) * 0.4);
       instances.push({
         position: new Vector3(x, 0, z),
-        scale: rng.range(0.5, 1.4),
+        scale: rng.range(0.3, 0.7),
         yaw: rng.range(0, Math.PI * 2),
-        tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.5, 1.0)),
+        tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.55, 1.0)),
       });
     }
     const sys = new InstancedPlants(buildFoliageTuft(5151), instances, this.sim, MECHANICS.microSprig, 0.35, 920000);

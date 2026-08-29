@@ -24,6 +24,8 @@ export interface PlantInstance {
   yaw: number;
   /** Whole-plant lean (radians) — rest posture, rotated about the root. */
   tilt?: number;
+  /** Lean about the Z axis — breaks parallel alignment. */
+  tiltZ?: number;
   tint: Color;
 }
 
@@ -57,7 +59,11 @@ export class InstancedPlants {
     instances.forEach((inst, i) => {
       _m.makeRotationY(inst.yaw).scale(new Vector3(inst.scale, inst.scale, inst.scale));
       if (inst.tilt) {
+        // lean about BOTH horizontal axes (yaw-rotated) so instanced stems
+        // never line up into a picket fence
         _mTilt.makeRotationX(inst.tilt);
+        _m.premultiply(_mTilt);
+        _mTilt.makeRotationZ((inst.tiltZ ?? 0));
         _m.premultiply(_mTilt);
       }
       _m.setPosition(inst.position);

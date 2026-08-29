@@ -7,16 +7,16 @@ export const palette = {
   // atmosphere
   bgDeep: "#071b26",
   bgNavy: "#0a2233",
-  bgTeal: "#123c4a",
+  bgTeal: "#284a44",
   cyanGap: "#3fa9c9",
   cyanGapDim: "#2a7fa0",
 
   // foliage
-  foliageTealDark: "#14464f",
-  foliageTeal: "#1b5f63",
-  foliageTealMid: "#2a7d7a",
-  foliageTealLight: "#3fa08e",
-  stemCyan: "#226360",
+  foliageTealDark: "#1d443e",
+  foliageTeal: "#2a5f55",
+  foliageTealMid: "#3d7d6c",
+  foliageTealLight: "#5aa88d",
+  stemCyan: "#357063",
   shadowNavy: "#0a1f2e",
 
   // petals

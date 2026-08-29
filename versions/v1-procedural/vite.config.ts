@@ -12,5 +12,7 @@ export default defineConfig({
   },
   test: {
     include: ["tests/unit/**/*.test.ts"],
+    // the botanical builders legitimately generate large meshes
+    testTimeout: 20000,
   },
 });

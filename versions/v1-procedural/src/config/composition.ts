@@ -54,7 +54,7 @@ export const heroes: Placement[] = [
     depth: 1.15,
     sizeFrac: 0.165,
     focusRole: "hero",
-    facing: [72, -16, 10],
+    facing: [30, -22, 9],
     seed: 101,
   },
   {
@@ -65,7 +65,7 @@ export const heroes: Placement[] = [
     sizeFrac: 0.105,
     focusRole: "hero",
     tint: palette.violet,
-    facing: [64, 18, -6],
+    facing: [38, 16, -7],
     seed: 102,
   },
   {
@@ -105,7 +105,7 @@ export const heroes: Placement[] = [
     depth: 1.36,
     sizeFrac: 0.10,
     focusRole: "hero",
-    facing: [76, -10, 4],
+    facing: [46, -14, 5],
     seed: 106,
   },
   {
@@ -115,7 +115,7 @@ export const heroes: Placement[] = [
     depth: 1.58,
     sizeFrac: 0.092,
     focusRole: "support",
-    facing: [70, -16, 0],
+    facing: [52, -18, 0],
     seed: 107,
   },
   {
@@ -146,7 +146,7 @@ export const heroes: Placement[] = [
     depth: 1.9,
     sizeFrac: 0.115,
     focusRole: "support",
-    facing: [78, 0, 0],
+    facing: [58, 4, 0],
     seed: 110,
   },
   { id: "bud-a", species: "budTeal", screen: [0.495, 0.155], depth: 1.35, sizeFrac: 0.020, focusRole: "support", seed: 111 },
@@ -211,17 +211,17 @@ export const blueSprigs: Placement[] = [
 /* ------------------------------------------------------------------ */
 
 export const foreground: Placement[] = [
-  { id: "fg-red-left", species: "softBokeh", screen: [0.23, 0.56], depth: 0.44, sizeFrac: 0.11, focusRole: "foreground", tint: "#d21b28", seed: 140 },
-  { id: "fg-red-bl", species: "softBokeh", screen: [0.10, 0.83], depth: 0.34, sizeFrac: 0.155, focusRole: "foreground", tint: "#b31220", seed: 141 },
-  { id: "fg-crimson-c", species: "softBokeh", screen: [0.58, 0.79], depth: 0.30, sizeFrac: 0.175, focusRole: "foreground", tint: "#c11726", seed: 142 },
-  { id: "fg-yellow-br", species: "softBokeh", screen: [0.80, 0.85], depth: 0.36, sizeFrac: 0.13, focusRole: "foreground", tint: "#e8ae1c", seed: 143 },
-  { id: "fg-orange-r", species: "softBokeh", screen: [0.95, 0.66], depth: 0.44, sizeFrac: 0.10, focusRole: "foreground", tint: palette.orange, seed: 144 },
-  { id: "fg-pink-l", species: "softBokeh", screen: [0.02, 0.21], depth: 0.5, sizeFrac: 0.10, focusRole: "foreground", tint: "#8e3a62", seed: 145 },
-  { id: "fg-magenta-l2", species: "softBokeh", screen: [0.005, 0.38], depth: 0.55, sizeFrac: 0.09, focusRole: "foreground", tint: palette.magenta, seed: 146 },
-  { id: "fg-red-corner", species: "softBokeh", screen: [0.025, 0.95], depth: 0.28, sizeFrac: 0.19, focusRole: "foreground", tint: "#a51320", seed: 180 },
-  { id: "fg-magenta-bl", species: "softBokeh", screen: [0.15, 0.99], depth: 0.33, sizeFrac: 0.13, focusRole: "foreground", tint: palette.magentaDeep, seed: 181 },
-  { id: "fg-orange-r2", species: "softBokeh", screen: [0.995, 0.78], depth: 0.4, sizeFrac: 0.12, focusRole: "foreground", tint: palette.orange, seed: 182 },
-  { id: "fg-crimson-c2", species: "softBokeh", screen: [0.68, 0.92], depth: 0.32, sizeFrac: 0.15, focusRole: "foreground", tint: "#b31220", seed: 183 },
+  { id: "fg-red-left", species: "softBokeh", screen: [0.23, 0.56], depth: 0.44, sizeFrac: 0.105, focusRole: "foreground", tint: "#d2202c", seed: 140 },
+  { id: "fg-red-bl", species: "softBokeh", screen: [0.10, 0.83], depth: 0.34, sizeFrac: 0.11, focusRole: "foreground", tint: "#c8161f", seed: 141 },
+  { id: "fg-crimson-c", species: "softBokeh", screen: [0.58, 0.79], depth: 0.30, sizeFrac: 0.125, focusRole: "foreground", tint: "#c4141d", seed: 142 },
+  { id: "fg-yellow-br", species: "softBokeh", screen: [0.80, 0.85], depth: 0.36, sizeFrac: 0.1, focusRole: "foreground", tint: "#e8a81a", seed: 143 },
+  { id: "fg-orange-r", species: "softBokeh", screen: [0.95, 0.66], depth: 0.44, sizeFrac: 0.085, focusRole: "foreground", tint: "#d8760e", seed: 144 },
+  { id: "fg-pink-l", species: "softBokeh", screen: [0.02, 0.21], depth: 0.5, sizeFrac: 0.062, focusRole: "foreground", tint: "#6b2749", seed: 145 },
+  { id: "fg-magenta-l2", species: "softBokeh", screen: [0.005, 0.38], depth: 0.55, sizeFrac: 0.058, focusRole: "foreground", tint: "#7a1a58", seed: 146 },
+  { id: "fg-red-corner", species: "softBokeh", screen: [0.025, 0.95], depth: 0.28, sizeFrac: 0.1, focusRole: "foreground", tint: "#8e0f16", seed: 180 },
+  { id: "fg-magenta-bl", species: "softBokeh", screen: [0.15, 0.99], depth: 0.33, sizeFrac: 0.07, focusRole: "foreground", tint: "#8e1550", seed: 181 },
+  { id: "fg-orange-r2", species: "softBokeh", screen: [0.995, 0.78], depth: 0.4, sizeFrac: 0.07, focusRole: "foreground", tint: "#c4640c", seed: 182 },
+  { id: "fg-crimson-c2", species: "softBokeh", screen: [0.68, 0.92], depth: 0.32, sizeFrac: 0.085, focusRole: "foreground", tint: "#a81018", seed: 183 },
   { id: "fg-violet-c", species: "softBokeh", screen: [0.44, 0.82], depth: 0.42, sizeFrac: 0.07, focusRole: "foreground", tint: "#4c39c4", seed: 184 },
   { id: "fg-violet-c2", species: "softBokeh", screen: [0.52, 0.96], depth: 0.36, sizeFrac: 0.08, focusRole: "foreground", tint: "#53309e", seed: 185 },
   { id: "fg-blue-c", species: "softBokeh", screen: [0.37, 0.95], depth: 0.4, sizeFrac: 0.06, focusRole: "foreground", tint: "#2438a8", seed: 186 },
@@ -237,27 +237,27 @@ export const background: Placement[] = [
   { id: "bg-poppy-2", species: "poppyBokeh", screen: [0.80, 0.05], depth: 3.8, sizeFrac: 0.072, focusRole: "background", tint: "#ff2530", seed: 151 },
   { id: "bg-poppy-3", species: "poppyBokeh", screen: [0.86, 0.15], depth: 3.2, sizeFrac: 0.065, focusRole: "background", tint: "#f2232e", seed: 152 },
   { id: "bg-poppy-4", species: "poppyBokeh", screen: [0.97, 0.02], depth: 4.0, sizeFrac: 0.068, focusRole: "background", tint: "#ff2530", seed: 153 },
-  { id: "bg-red-tc", species: "softBokeh", screen: [0.37, 0.06], depth: 4.5, sizeFrac: 0.07, focusRole: "background", tint: palette.red, seed: 154 },
-  { id: "bg-red-tc2", species: "softBokeh", screen: [0.44, 0.035], depth: 5.0, sizeFrac: 0.06, focusRole: "background", tint: palette.crimson, seed: 155 },
+  { id: "bg-red-tc", species: "softBokeh", screen: [0.37, 0.06], depth: 4.5, sizeFrac: 0.05, focusRole: "background", tint: palette.red, seed: 154 },
+  { id: "bg-red-tc2", species: "softBokeh", screen: [0.44, 0.035], depth: 5.0, sizeFrac: 0.045, focusRole: "background", tint: palette.crimson, seed: 155 },
   // dark maroon top-left
-  { id: "bg-maroon-1", species: "softBokeh", screen: [0.06, 0.10], depth: 2.6, sizeFrac: 0.12, focusRole: "background", tint: palette.maroon, seed: 156 },
-  { id: "bg-maroon-2", species: "softBokeh", screen: [0.02, 0.04], depth: 2.9, sizeFrac: 0.11, focusRole: "background", tint: "#450a10", seed: 157 },
-  { id: "bg-maroon-3", species: "softBokeh", screen: [0.14, 0.03], depth: 3.2, sizeFrac: 0.09, focusRole: "background", tint: palette.maroon, seed: 158 },
+  { id: "bg-maroon-1", species: "softBokeh", screen: [0.06, 0.10], depth: 2.6, sizeFrac: 0.075, focusRole: "background", tint: palette.maroon, seed: 156 },
+  { id: "bg-maroon-2", species: "softBokeh", screen: [0.02, 0.04], depth: 2.9, sizeFrac: 0.07, focusRole: "background", tint: "#450a10", seed: 157 },
+  { id: "bg-maroon-3", species: "softBokeh", screen: [0.14, 0.03], depth: 3.2, sizeFrac: 0.06, focusRole: "background", tint: palette.maroon, seed: 158 },
   // right edge color
-  { id: "bg-orange-tr", species: "softBokeh", screen: [0.955, 0.22], depth: 2.6, sizeFrac: 0.12, focusRole: "background", tint: palette.orange, seed: 159 },
-  { id: "bg-magenta-r", species: "softBokeh", screen: [0.93, 0.35], depth: 2.4, sizeFrac: 0.09, focusRole: "background", tint: palette.violet, seed: 160 },
-  { id: "bg-violet-r", species: "softBokeh", screen: [0.93, 0.47], depth: 2.1, sizeFrac: 0.085, focusRole: "background", tint: palette.magenta, seed: 161 },
+  { id: "bg-orange-tr", species: "softBokeh", screen: [0.955, 0.22], depth: 2.6, sizeFrac: 0.075, focusRole: "background", tint: "#9c5209", seed: 159 },
+  { id: "bg-magenta-r", species: "softBokeh", screen: [0.93, 0.35], depth: 2.4, sizeFrac: 0.058, focusRole: "background", tint: "#4c2586", seed: 160 },
+  { id: "bg-violet-r", species: "softBokeh", screen: [0.93, 0.47], depth: 2.1, sizeFrac: 0.055, focusRole: "background", tint: "#7a1758", seed: 161 },
   // cyan sky-gap bokeh
   { id: "bg-cyan-1", species: "softBokeh", screen: [0.58, 0.055], depth: 7.0, sizeFrac: 0.10, focusRole: "background", tint: palette.cyanGap, seed: 162 },
   { id: "bg-cyan-2", species: "softBokeh", screen: [0.66, 0.03], depth: 7.5, sizeFrac: 0.085, focusRole: "background", tint: palette.cyanGapDim, seed: 163 },
   { id: "bg-cyan-3", species: "softBokeh", screen: [0.73, 0.12], depth: 6.5, sizeFrac: 0.07, focusRole: "background", tint: palette.cyanGapDim, seed: 164 },
   { id: "bg-cyan-4", species: "softBokeh", screen: [0.52, 0.10], depth: 6.8, sizeFrac: 0.06, focusRole: "background", tint: "#1d5a74", seed: 165 },
   // pink left edge
-  { id: "bg-pink-l", species: "softBokeh", screen: [0.03, 0.17], depth: 2.2, sizeFrac: 0.09, focusRole: "background", tint: "#7e3358", seed: 166 },
+  { id: "bg-pink-l", species: "softBokeh", screen: [0.03, 0.17], depth: 2.2, sizeFrac: 0.055, focusRole: "background", tint: "#5e2440", seed: 166 },
   // soft red presence, left-center band (fills the void beside the hero)
-  { id: "bg-red-lc1", species: "softBokeh", screen: [0.115, 0.38], depth: 2.0, sizeFrac: 0.085, focusRole: "background", tint: "#8e1220", seed: 167 },
-  { id: "bg-red-lc2", species: "softBokeh", screen: [0.045, 0.47], depth: 1.8, sizeFrac: 0.075, focusRole: "background", tint: "#a01523", seed: 168 },
-  { id: "bg-magenta-lc", species: "softBokeh", screen: [0.06, 0.30], depth: 2.4, sizeFrac: 0.07, focusRole: "background", tint: "#8e1766", seed: 169 },
+  { id: "bg-red-lc1", species: "softBokeh", screen: [0.115, 0.38], depth: 2.0, sizeFrac: 0.055, focusRole: "background", tint: "#5e0c16", seed: 167 },
+  { id: "bg-red-lc2", species: "softBokeh", screen: [0.045, 0.47], depth: 1.8, sizeFrac: 0.05, focusRole: "background", tint: "#6b0e18", seed: 168 },
+  { id: "bg-magenta-lc", species: "softBokeh", screen: [0.06, 0.30], depth: 2.4, sizeFrac: 0.048, focusRole: "background", tint: "#5c1042", seed: 169 },
 ];
 
 export const allPlacements: Placement[] = [
@@ -341,29 +341,11 @@ export const bgField: BgCluster[] = [
   // top-right poppy rings
   {
     zone: { cx: 0.8, cy: 0.09, rx: 0.14, ry: 0.09, w: 1 },
-    depth: [3.2, 4.2],
-    sizeFrac: [0.048, 0.072],
-    colors: ["#ff2530", "#f2232e", "#e01c28"],
+    depth: [3.2, 4.4],
+    sizeFrac: [0.036, 0.055],
+    colors: ["#c21a24", "#a81620", "#96161f"],
     kinds: [1, 1, 2],
-    count: 7,
-  },
-  // top-center cyan sky-gap — the luminous patch the eye rests on
-  {
-    zone: { cx: 0.60, cy: 0.07, rx: 0.05, ry: 0.05, w: 1 },
-    depth: [4.2, 5.2],
-    sizeFrac: [0.07, 0.10],
-    colors: ["#3fa9c9", "#2a8fb4"],
-    kinds: [3],
-    count: 3,
-  },
-  // top-right azure/cobalt discs (sky gaps between flowers)
-  {
-    zone: { cx: 0.78, cy: 0.05, rx: 0.12, ry: 0.06, w: 1 },
-    depth: [3.8, 5.0],
-    sizeFrac: [0.045, 0.07],
-    colors: ["#2a6fd4", "#3fa9c9", "#2a7fa0"],
-    kinds: [3, 0],
-    count: 4,
+    count: 5,
   },
   // right band magenta/violet/orange
   {
@@ -378,16 +360,16 @@ export const bgField: BgCluster[] = [
   {
     zone: { cx: 0.58, cy: 0.42, rx: 0.14, ry: 0.13, w: 1 },
     depth: [2.6, 3.8],
-    sizeFrac: [0.08, 0.14],
-    colors: ["#17505c", "#1f6a68", "#123c4a"],
+    sizeFrac: [0.055, 0.09],
+    colors: ["#134450", "#175450", "#0e323d"],
     kinds: [0],
     count: 5,
   },
   {
     zone: { cx: 0.42, cy: 0.5, rx: 0.12, ry: 0.11, w: 1 },
     depth: [2.8, 4.0],
-    sizeFrac: [0.07, 0.12],
-    colors: ["#1b5f63", "#14464f"],
+    sizeFrac: [0.05, 0.085],
+    colors: ["#14484c", "#10363d"],
     kinds: [0],
     count: 4,
   },

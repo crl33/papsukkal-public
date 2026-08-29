@@ -34,7 +34,16 @@ export function addStem(
   height: number,
   radius: number,
   rng: Rng,
-  opts: { bow?: number; color?: Color; flutterTop?: number; radial?: number; segs?: number; sMax?: number } = {},
+  opts: {
+    bow?: number;
+    color?: Color;
+    flutterTop?: number;
+    radial?: number;
+    segs?: number;
+    sMax?: number;
+    /** Darken the lower part of the stalk so it fades into the tangle. */
+    fadeLow?: number;
+  } = {},
 ): void {
   const bowAmt = opts.bow ?? rng.range(0.008, 0.03);
   const bowAng = rng.range(0, Math.PI * 2);
@@ -62,7 +71,9 @@ export function addStem(
     const r = radius * (1 - u * 0.35);
     normal.set(Math.cos(ang), 0, Math.sin(ang));
     pos.set(c.x + normal.x * r, c.y, c.z + normal.z * r);
-    const col = color.clone().multiplyScalar(0.72 + 0.16 * u);
+    const fadeLow = opts.fadeLow ?? 0;
+    const emerge = fadeLow > 0 ? 0.25 + 0.75 * smoothstep01(u / fadeLow) : 1;
+    const col = color.clone().multiplyScalar((0.72 + 0.16 * u) * emerge);
     return { color: col, data: { s: u * (opts.sMax ?? 1), head: 0, flutter: flutterTop * u * u, phase: 0 } };
   });
 }
@@ -220,7 +231,17 @@ export interface TexturedPetalOptions {
   /** Visible petal length / width (meters). */
   length: number;
   width: number;
+  /** Sweep BACK from the face plane (radians, positive = petals droop away). */
   cone: number;
+  /**
+   * Cup elevation (radians): how far petals RISE out of the receptacle
+   * plane, forming a bowl. This is the parameter that makes an oblique
+   * flower read as volumetric — the far petals stand up around the cup
+   * while the near ones foreshorten into the rim.
+   */
+  elevation?: number;
+  /** Extra rise applied to the petal's outer half (bowl flare). */
+  flare?: number;
   cup: number;
   arch: number;
   baseRadius: number;
@@ -234,6 +255,14 @@ export interface TexturedPetalOptions {
   /** Base tint multiplied into the painted albedo (fg masses reuse the
    * neutral atlas with their own hue). */
   tint?: Color;
+  /**
+   * Structural ambient occlusion inside the cup: albedo scale at the petal
+   * BASE (throat), ramping to 1 at the tip. Real flowers are darkest deep
+   * in the corolla — this is geometry-driven shading, not noise.
+   */
+  aoBase?: number;
+  /** Elevation jitter per petal (radians) — uneven whorls. */
+  elevJitter?: number;
 }
 
 /**
@@ -259,10 +288,15 @@ export function addTexturedPetals(b: GeomBuilder, rng: Rng, o: TexturedPetalOpti
     angles.push((i / o.count) * Math.PI * 2 + rng.gauss() * (1.4 / o.count) * wild);
   }
 
+  const elevation = o.elevation ?? 0;
+  const flare = o.flare ?? 0;
+  const aoBase = o.aoBase ?? 1;
+
   for (let i = 0; i < o.count; i++) {
     const theta = angles[i];
     const len = o.length * (1 + rng.gauss() * 0.12 * wild);
     const cone = o.cone + rng.gauss() * 0.22 * wild;
+    const elev = elevation + rng.gauss() * (o.elevJitter ?? 0.14) * wild;
     const roll = rng.gauss() * 0.2 * wild;
     const curl = rng.gauss() * curlAmt * wild;
     const lift = rng.gauss() * 0.012 * wild * len;
@@ -282,8 +316,11 @@ export function addTexturedPetals(b: GeomBuilder, rng: Rng, o: TexturedPetalOpti
         for (let iv = 0; iv <= nv; iv++) {
           const u = iu / nu;
           const va = (iv / nv) * 2 - 1;
-          const x = baseR + u * len;
+          // radial reach shortens as the petal rises out of the cup
+          const x = baseR + u * len * Math.cos(elev + flare * u);
           const y =
+            Math.sin(elev) * u * len +
+            flare * u * u * len * 0.55 +
             -Math.sin(cone) * u * len +
             o.arch * Math.sin(u * Math.PI) * len * 0.2 +
             curl * u * u * len * 0.55 +
@@ -291,12 +328,14 @@ export function addTexturedPetals(b: GeomBuilder, rng: Rng, o: TexturedPetalOpti
             lift;
           pos.set(x, y, va * cardHalf);
           nrm.set(0, 0, 0);
+          // structural AO: darkest deep in the throat, opening toward the tip
+          const ao = aoBase + (1 - aoBase) * smoothstep01(u * 1.45);
           b.vertex(
             pos,
             nrm,
             cell.u0 + (0.5 + (va * mirror) / 2) * cell.du,
             cell.v0 + u * cell.dv,
-            color,
+            color.clone().multiplyScalar(ao),
             { s: 1, head: 1, flutter: (o.flutter ?? 0.45) * u * u, phase, tex: 1 },
           );
         }
@@ -408,8 +447,10 @@ export function addBlob(
   flutter: number,
   phase: number,
   headFlag = 0,
+  nu = 6,
+  nv = 8,
 ): void {
-  b.grid(6, 8, (u, v, pos, normal) => {
+  b.grid(nu, nv, (u, v, pos, normal) => {
     const phi = u * Math.PI;
     const theta = v * Math.PI * 2;
     const n = new Vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi) * squash, Math.sin(phi) * Math.sin(theta));
@@ -472,52 +513,68 @@ export function buildCosmos(
   addStem(b, headY, 0.0014 + diameter * 0.006, rng, {});
 
   // variant selects the painted atlas (magenta hero vs violet second bloom)
-  // — see MeadowScene, which attaches the matching petal artwork
+  // — see MeadowScene, which attaches the matching petal artwork.
+  //
+  // MORPHOLOGY (silhouette-matched against the reference, not tuned by
+  // arbitrary angles): a shallow BOWL. Petals rise ~40° out of the
+  // receptacle plane and flare outward, so when the head is pitched
+  // obliquely the far petals stand up around the cup while the near ones
+  // foreshorten into a smooth rim — the wide, volumetric, side-biased
+  // silhouette of the reference, not a frontal radial disc.
   headSection(b, headY, facing, () => {
-    // back layer: fewer, longer, droopier, in shadow
+    // outer whorl: longer, lower, sweeping back — reads as the cup's rim
     addTexturedPetals(b, rng, {
-      count: 6,
-      length: diameter * 0.44,
-      width: diameter * 0.27,
-      cone: 0.42,
-      cup: 0.5,
-      arch: 0.7,
-      baseRadius: diameter * 0.07,
-      nu: Math.round(6 * detail) + 2,
-      nv: 3,
-      wildness: 0.85,
-      curl: 0.35,
-      flutter: 0.45,
-      lum: [0.62, 0.88],
-    });
-    // front layer: the readable petals
-    addTexturedPetals(b, rng, {
-      count: 9,
-      length: diameter * 0.395,
-      width: diameter * 0.28,
-      cone: 0.22,
-      cup: 0.55,
-      arch: 0.85,
-      baseRadius: diameter * 0.055,
+      count: 7,
+      length: diameter * 0.54,
+      width: diameter * 0.31,
+      cone: 0.16,
+      elevation: 0.34,
+      flare: 0.46,
+      cup: 0.75,
+      arch: 0.55,
+      baseRadius: diameter * 0.05,
       nu: Math.round(7 * detail) + 2,
       nv: 3,
-      wildness: 0.72,
-      curl: 0.5,
+      wildness: 0.85,
+      elevJitter: 0.2,
+      curl: 0.3,
       flutter: 0.45,
-      lum: [0.8, 1.12],
+      lum: [0.8, 1.08],
+      aoBase: 0.46,
     });
-    addTexturedCenter(b, rng, diameter * 0.1, diameter * 0.07);
-    // physical stamens on the rim for parallax over the painted disc
+    // inner whorl: shorter, steeper — the standing petals inside the bowl
+    addTexturedPetals(b, rng, {
+      count: 8,
+      length: diameter * 0.46,
+      width: diameter * 0.28,
+      cone: 0.0,
+      elevation: 0.62,
+      flare: 0.3,
+      cup: 0.95,
+      arch: 0.4,
+      baseRadius: diameter * 0.038,
+      nu: Math.round(7 * detail) + 2,
+      nv: 3,
+      wildness: 0.75,
+      elevJitter: 0.22,
+      curl: 0.34,
+      flutter: 0.45,
+      lum: [1.0, 1.34],
+      aoBase: 0.38,
+    });
+    // receptacle sits LOW in the cup — a foreshortened dark wedge under an
+    // oblique head, exactly as the reference reads
+    addTexturedCenter(b, rng, diameter * 0.085, diameter * 0.05);
     const stamen = srgb(palette.daisyCenter);
     const stamenHot = srgb("#f59a1e");
-    const n = rng.int(8, 11);
+    const n = rng.int(9, 12);
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * Math.PI * 2 + rng.range(-0.12, 0.12);
-      const rr = diameter * 0.1 * rng.range(0.66, 0.8);
+      const rr = diameter * 0.085 * rng.range(0.7, 0.88);
       addBlob(
         b,
-        new Vector3(Math.cos(ang) * rr, diameter * 0.07 * rng.range(0.6, 0.85), Math.sin(ang) * rr),
-        diameter * rng.range(0.011, 0.015),
+        new Vector3(Math.cos(ang) * rr, diameter * 0.05 * rng.range(0.7, 1.0), Math.sin(ang) * rr),
+        diameter * rng.range(0.008, 0.0115),
         0.8,
         varied(stamen.clone().lerp(stamenHot, rng.next()), rng, 0.05),
         1,
@@ -528,7 +585,7 @@ export function buildCosmos(
     }
   });
 
-    // feathery leaves low on the stem
+  // feathery leaves low on the stem
   const leaves = rng.int(2, 3);
   for (let i = 0; i < leaves; i++) {
     addLeaf(b, rng, headY * rng.range(0.25, 0.6), headY, diameter * rng.range(0.5, 0.8), diameter * 0.05, srgb(palette.foliageTeal));
@@ -640,10 +697,16 @@ export function buildMicroSprig(
 ): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
-  const mainH = topY * 0.7;
+  const mainH = topY * 0.52;
   // stem s runs 0..mainH/topY so pedicels/blooms (normalized by topY) share
   // one bend convention — mismatched weights shear blooms off under wind
-  addStem(b, mainH, 0.0016, rng, { bow: rng.range(0.015, 0.045), flutterTop: 0.15, sMax: mainH / topY });
+  addStem(b, mainH, 0.00042, rng, {
+    bow: rng.range(0.02, 0.07),
+    flutterTop: 0.15,
+    sMax: mainH / topY,
+    color: srgb(palette.foliageTealDark).multiplyScalar(0.8),
+    fadeLow: 0.55,
+  });
 
   const colors: Record<string, [Color, Color]> = {
     red: [srgb(palette.red), srgb(palette.crimson)],
@@ -653,102 +716,156 @@ export function buildMicroSprig(
   const [cA, cB] = colors[kind];
   const stemCol = srgb(palette.stemCyan);
 
-  const count = kind === "red" ? rng.int(14, 20) : rng.int(7, 11);
-  for (let i = 0; i < count; i++) {
-    const ang = rng.range(0, Math.PI * 2);
-    const rad = spread * Math.sqrt(rng.next()) * 0.5;
-    const y = topY * rng.range(0.72, 1.0);
-    const px = Math.cos(ang) * rad;
-    const pz = Math.sin(ang) * rad;
-    const attachY = mainH * rng.range(0.75, 0.98);
-    const sAvg = Math.min(1, y / topY);
-    const phase = rng.next() * Math.PI * 2;
-
-    // pedicel: thin line quad from main stem to bloom
-    b.grid(3, 1, (u, v, pos) => {
-      const va = v * 2 - 1;
-      const x = px * u;
-      const z = pz * u;
-      const yy = attachY + (y - attachY) * u;
-      pos.set(x + va * 0.0012, yy, z);
-      return { color: stemCol.clone().multiplyScalar(0.9), data: { s: Math.min(1, yy / topY), head: 0, flutter: 0.25 * u, phase } };
+  /** One tiny blossom: a flat 5-petal star with a pale eye. */
+  const blossom = (x: number, y: number, z: number, r: number, sVal: number, col: Color, ph: number) => {
+    _m.makeRotationFromEuler(
+      new Euler(rng.range(0.5, 1.5), rng.range(0, Math.PI * 2), 0, "YXZ"),
+    ).setPosition(x, y, z);
+    b.section(_m, () => {
+      const petals = 5;
+      for (let i = 0; i < petals; i++) {
+        const a = (i / petals) * Math.PI * 2 + rng.range(-0.25, 0.25);
+        const pr = r * rng.range(0.85, 1.15);
+        b.grid(2, 1, (u, v, pos) => {
+          const va = v * 2 - 1;
+          const half = pr * 0.42 * Math.sin(Math.PI * Math.min(1, 0.25 + u * 0.85));
+          const rad = r * 0.25 + u * pr;
+          pos.set(
+            Math.cos(a) * rad - Math.sin(a) * va * half,
+            u * u * pr * 0.18,
+            Math.sin(a) * rad + Math.cos(a) * va * half,
+          );
+          return {
+            color: col.clone().multiplyScalar(0.82 + 0.4 * u),
+            data: { s: sVal, head: 0, flutter: 0.5, phase: ph + i },
+          };
+        });
+      }
+      // a rounded heart under the star: the reference's blossoms are small
+      // double flowers, not flat asterisks. One coarse dome is plenty at a
+      // few pixels across — these are built in the thousands.
+      addBlob(b, new Vector3(0, r * 0.14, 0), r * 0.44, 0.85, col.clone().multiplyScalar(1.25), sVal, 0.5, ph, 0, 4, 5);
     });
+  };
 
-    const bloomR = spread * rng.range(0.052, 0.085);
-    const col = varied(cA.clone().lerp(cB, rng.next()), rng, 0.05);
-    if (kind === "red") col.multiplyScalar(1.25);
-    if (kind === "red") {
-      // tiny pom cluster: 3-5 lobes so the blossom reads floral, not berry
-      const lobes = rng.int(3, 5);
-      for (let li = 0; li < lobes; li++) {
-        const la = (li / lobes) * Math.PI * 2 + rng.range(-0.5, 0.5);
-        const lr = bloomR * rng.range(0.3, 0.55);
-        const lc = varied(col, rng, 0.06).multiplyScalar(rng.range(0.85, 1.15));
-        addBlob(
-          b,
-          new Vector3(px + Math.cos(la) * lr, y + rng.range(-0.3, 0.5) * lr, pz + Math.sin(la) * lr),
-          bloomR * rng.range(0.38, 0.52),
-          0.9,
-          lc,
-          sAvg,
-          0.5,
-          phase + li,
+  if (kind === "red") {
+    // RED SPRAY: a branching corymb. Several stalks leave the upper stem and
+    // each carries a TIGHT umbel of many tiny blossoms — the reference's
+    // airy scarlet clouds. (Blossoms on long individual pedicels read as
+    // "sticks with a dot", which is exactly what this replaces.)
+    const branches = rng.int(5, 8);
+    const cAt = new Vector3();
+    for (let bi = 0; bi < branches; bi++) {
+      const t0 = rng.range(0.5, 0.95);
+      const baseY = mainH * t0;
+      const ang = rng.range(0, Math.PI * 2);
+      const reach = spread * rng.range(0.22, 0.75);
+      // umbels ride at the TOP of the sprig, where the reference's scarlet
+      // clouds sit — not down in the dark understory
+      const cy = topY * rng.range(0.66, 1.06);
+      const rise = cy - baseY;
+      const cx = Math.cos(ang) * reach;
+      const cz = Math.sin(ang) * reach * 0.7;
+      const sTip = Math.min(1, cy / topY);
+      const bend = rng.range(-0.5, 0.5);
+      // curved stalk out to the umbel
+      b.grid(5, 1, (u, v, pos) => {
+        const va = v * 2 - 1;
+        const a2 = ang + bend * u * u;
+        const rr = reach * u;
+        pos.set(
+          Math.cos(a2) * rr + va * 0.0005,
+          baseY + rise * u * (1.15 - 0.15 * u),
+          Math.sin(a2) * rr * 0.7,
+        );
+        return {
+          color: stemCol.clone().multiplyScalar(0.85 + 0.3 * u),
+          data: { s: Math.min(1, (baseY + rise * u) / topY), head: 0, flutter: 0.3 * u, phase: bi },
+        };
+      });
+      // the umbel itself: a dense rounded head of tiny blossoms
+      const n = rng.int(26, 38);
+      const uR = spread * rng.range(0.13, 0.22);
+      for (let i = 0; i < n; i++) {
+        const a = rng.range(0, Math.PI * 2);
+        const rr = uR * Math.sqrt(rng.next());
+        const yy = cy + rng.gauss() * uR * 0.5;
+        cAt.set(cx + Math.cos(a) * rr, yy, cz + Math.sin(a) * rr * 0.8);
+        blossom(
+          cAt.x,
+          cAt.y,
+          cAt.z,
+          spread * rng.range(0.032, 0.052),
+          sTip,
+          varied(cA.clone().lerp(cB, rng.next()), rng, 0.07).multiplyScalar(rng.range(0.7, 1.15)),
+          i * 1.7 + bi,
         );
       }
-    } else {
-      // tiny open rosette: 5 rounded petals
-      _m.makeRotationFromEuler(new Euler(rng.range(0.7, 1.35), rng.range(-0.6, 0.6), 0, "YXZ")).setPosition(px, y, pz);
-      // sprig blooms bend with the stem envelope at their attach height —
-      // no rigid pivot (each pedicel carries its own bloom)
-      b.section(_m, () => {
-        addPetalRing(b, rng, {
-          count: 5,
-          length: bloomR * 1.8,
-          width: bloomR * 1.4,
-          cone: 0.25,
-          cup: 0.4,
-          arch: 0.3,
-          baseRadius: bloomR * 0.2,
-          nu: 2,
-          nv: 1,
-          flutter: 0.55,
-          headFlag: 0,
-          sOverride: sAvg,
-          colorFn: (u) => col.clone().multiplyScalar(0.8 + 0.45 * u),
-        });
-        addCenterDome(b, bloomR * 0.3, bloomR * 0.2, () => srgb(kind === "blue" ? "#dfe6ff" : "#2a0a3a"), 0.06, 0, sAvg);
+    }
+  } else {
+    // scattered small rosettes on short pedicels (cornflower-like)
+    const count = rng.int(7, 11);
+    for (let i = 0; i < count; i++) {
+      const ang = rng.range(0, Math.PI * 2);
+      const rad = spread * Math.sqrt(rng.next()) * 0.5;
+      const y = topY * rng.range(0.72, 1.0);
+      const px = Math.cos(ang) * rad;
+      const pz = Math.sin(ang) * rad;
+      const attachY = mainH * rng.range(0.82, 0.99);
+      const sAvg = Math.min(1, y / topY);
+      const phase = rng.next() * Math.PI * 2;
+      b.grid(3, 1, (u, v, pos) => {
+        const va = v * 2 - 1;
+        pos.set(px * u + va * 0.0012, attachY + (y - attachY) * u, pz * u);
+        return {
+          color: stemCol.clone().multiplyScalar(0.9),
+          data: { s: Math.min(1, (attachY + (y - attachY) * u) / topY), head: 0, flutter: 0.25 * u, phase },
+        };
       });
+      blossom(
+        px,
+        y,
+        pz,
+        spread * rng.range(0.1, 0.16),
+        sAvg,
+        varied(cA.clone().lerp(cB, rng.next()), rng, 0.05),
+        phase,
+      );
     }
   }
   return { builder: b, headPivotY: topY };
 }
 
 /**
- * Unit mid-distance flower head (head only, white albedo — per-instance tint
- * colors it). Root at origin, head pivot at y=1; instanceMatrix scales.
- * Rendered beyond ~1.8m where DOF melts it into a soft colored bloom.
+ * Unit mid-distance flower head (head only, neutral albedo — per-instance
+ * tint colours it). Root at origin, head pivot at y=1; instanceMatrix
+ * scales. Rendered beyond ~2m where DOF melts it into a soft bloom.
  */
 export function buildMidFlowerHead(seed: number): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
   const d = 0.16;
-  headSection(b, 1.0, [rng.range(30, 80), rng.range(0, 360), 0], () => {
+  headSection(b, 1.0, [rng.range(22, 62), rng.range(0, 360), rng.range(-25, 25)], () => {
     addTexturedPetals(b, rng, {
       count: rng.int(6, 8),
       length: d * 0.45,
       width: d * 0.31,
-      cone: 0.35,
-      cup: 0.5,
+      cone: 0.16,
+      elevation: 0.42,
+      flare: 0.3,
+      cup: 0.6,
       arch: 0.7,
       baseRadius: d * 0.05,
       nu: 4,
       nv: 2,
-      wildness: 0.65,
+      wildness: 0.7,
+      elevJitter: 0.2,
       curl: 0.35,
       flutter: 0.4,
       lum: [0.78, 1.18],
+      aoBase: 0.5,
     });
-    addTexturedCenter(b, rng, d * 0.09, d * 0.055);
+    addTexturedCenter(b, rng, d * 0.085, d * 0.05);
   });
   return { builder: b, headPivotY: 1.0 };
 }
@@ -762,15 +879,15 @@ export function buildMidFlowerHead(seed: number): PlantBuild {
 export function buildWiryStem(seed: number): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
-  const stemCol = srgb(palette.stemCyan).multiplyScalar(1.35);
-  const darkCol = srgb(palette.foliageTealDark);
+  const stemCol = srgb("#2f6153");
+  const darkCol = srgb(palette.foliageTealDark).multiplyScalar(1.0);
 
-  const bow1 = rng.gauss() * 0.1;
-  const bow2 = rng.gauss() * 0.05;
+  const bow1 = rng.gauss() * 0.19;
+  const bow2 = rng.gauss() * 0.09;
   const bowAng = rng.range(0, Math.PI * 2);
   const hook = rng.next() < 0.42 ? rng.range(0.1, 0.26) : 0; // nodding tip
   const hookAng = rng.range(0, Math.PI * 2);
-  const baseW = rng.range(0.0014, 0.0042);
+  const baseW = rng.range(0.0003, 0.00065);
 
   const center = (t: number, out: Vector3) => {
     const b1 = Math.sin(t * Math.PI) * bow1;
@@ -804,9 +921,12 @@ export function buildWiryStem(seed: number): PlantBuild {
       const w = w0 * (1 - u * 0.55);
       pos.set(c.x + va * w, c.y, c.z);
       normal.set(0, 0, 1);
-      const shade = 0.55 + 0.45 * rngShade(t, seed);
+      const shade = 0.6 + 0.34 * rngShade(t, seed);
+      // vanish softly at both ends so no stem reads as a drawn line
+      const sHere = Math.min(1, sBase + t * sSpan);
+      const fade = smoothstep01(sHere / 0.25) * (1 - 0.55 * smoothstep01((sHere - 0.55) / 0.45));
       return {
-        color: col.clone().multiplyScalar(shade),
+        color: col.clone().multiplyScalar(shade * (0.35 + 0.65 * fade)),
         data: { s: Math.min(1, sBase + t * sSpan), head: 0, flutter: 0.12 * (sBase + t * sSpan), phase: seed % 7 },
       };
     });
@@ -815,7 +935,7 @@ export function buildWiryStem(seed: number): PlantBuild {
   ribbon(center, 0, 1, baseW, 9, rng.next() < 0.3 ? darkCol : stemCol);
 
   // side branches
-  const branches = rng.int(0, 2);
+  const branches = rng.int(1, 3);
   const cAt = new Vector3();
   for (let i = 0; i < branches; i++) {
     const t0 = rng.range(0.45, 0.78);
@@ -826,12 +946,13 @@ export function buildWiryStem(seed: number): PlantBuild {
     const bx = cAt.x;
     const by = cAt.y;
     const bz = cAt.z;
+    const bend = rng.range(-0.7, 0.7);
     const branchFn = (t: number, out: Vector3) => {
-      const tt = t;
+      const a2 = ang + bend * t * t;
       out.set(
-        bx + Math.cos(ang) * Math.cos(up) * tt * len,
-        by + Math.sin(up) * tt * len - tt * tt * len * 0.25,
-        bz + Math.sin(ang) * Math.cos(up) * tt * len * 0.6,
+        bx + Math.cos(a2) * Math.cos(up) * t * len,
+        by + Math.sin(up) * t * len - t * t * len * 0.42,
+        bz + Math.sin(a2) * Math.cos(up) * t * len * 0.6,
       );
     };
     ribbon(branchFn, 0.05, 1, baseW * 0.6, 4, stemCol, t0, Math.sin(up) * len);
@@ -854,39 +975,47 @@ export function buildWiryStem(seed: number): PlantBuild {
   }
 
   // tiny leaf flecks
-  const leaves = rng.int(1, 3);
+  const leaves = rng.int(3, 6);
   for (let i = 0; i < leaves; i++) {
-    const t0 = rng.range(0.25, 0.7);
+    const t0 = rng.range(0.2, 0.85);
     center(t0, cAt);
     const ang = rng.range(0, Math.PI * 2);
-    const len = rng.range(0.04, 0.1);
+    const len = rng.range(0.028, 0.062);
+    const droop = rng.range(0.5, 1.3);
+    const bend = rng.range(-0.5, 0.5);
     const lx = cAt.x;
     const ly = cAt.y;
     const lz = cAt.z;
     ribbon(
       (t, out) =>
         out.set(
-          lx + Math.cos(ang) * t * len,
-          ly + t * len * 0.7 - t * t * len * 0.5,
-          lz + Math.sin(ang) * t * len * 0.5,
+          // curved leaflet: arcs outward and nods over — no straight strokes
+          lx + Math.cos(ang + bend * t * t) * t * len,
+          ly + t * len * 0.62 - t * t * len * droop,
+          lz + Math.sin(ang + bend * t * t) * t * len * 0.6,
         ),
       0,
       1,
-      0.006,
-      3,
+      0.0042,
+      4,
       varied(srgb(palette.foliageTeal), rng, 0.08),
       t0,
-      len * 0.7,
+      len * 0.6,
     );
   }
 
   return { builder: b, headPivotY: 1 };
 }
 
-/** Deterministic pseudo-shade along a stem (no Math.random anywhere). */
+/**
+ * Smooth deterministic shade along a stem. (An earlier white-noise version
+ * sampled per-vertex made every ribbon render as a DASHED line — the single
+ * loudest "wire frame" artifact in the midground.)
+ */
 function rngShade(t: number, seed: number): number {
-  const x = Math.sin(t * 37.7 + seed * 0.61) * 43758.5453;
-  return x - Math.floor(x);
+  const a = Math.sin(t * 2.3 + seed * 0.37);
+  const b = Math.sin(t * 1.1 - seed * 0.91);
+  return 0.5 + 0.32 * a + 0.18 * b;
 }
 
 /**
@@ -913,23 +1042,25 @@ export function buildFeatherClump(seed: number): PlantBuild {
       const nx = bx * t0;
       const ny = h * t0;
       const nz = bz * t0;
-      const threads = rng.int(3, 6);
+      const threads = rng.int(7, 12);
       for (let i = 0; i < threads; i++) {
         const ang = rng.range(0, Math.PI * 2);
         const up = rng.range(-0.2, 0.9);
-        const len = rng.range(0.05, 0.14);
-        const col = varied(teal.clone().lerp(light, rng.next() * 0.7), rng, 0.07);
+        const len = rng.range(0.024, 0.058);
+        const col = varied(teal.clone().lerp(light, 0.1 + rng.next() * 0.35), rng, 0.07).multiplyScalar(0.95);
         const phase = rng.next() * Math.PI * 2;
-        b.grid(3, 1, (u, v, pos) => {
+        const bendT = rng.range(-0.8, 0.8);
+        b.grid(4, 1, (u, v, pos) => {
           const va = v * 2 - 1;
-          const w = 0.0024 * (1 - u * 0.6);
+          const w = 0.0009 * (1 - u * 0.6);
+          const a2 = ang + bendT * u * u;
           pos.set(
-            nx + Math.cos(ang) * Math.cos(up) * u * len + va * w,
-            ny + Math.sin(up) * u * len - u * u * len * 0.3,
-            nz + Math.sin(ang) * Math.cos(up) * u * len * 0.7,
+            nx + Math.cos(a2) * Math.cos(up) * u * len + va * w,
+            ny + Math.sin(up) * u * len - u * u * len * 0.55,
+            nz + Math.sin(a2) * Math.cos(up) * u * len * 0.7,
           );
           return {
-            color: col.clone().multiplyScalar(0.7 + 0.5 * u),
+            color: col.clone().multiplyScalar(0.62 + 0.4 * u),
             data: { s: Math.min(1, t0), head: 0, flutter: 0.3 * u, phase },
           };
         });
@@ -949,17 +1080,17 @@ export function buildFoliageTuft(seed: number): PlantBuild {
   for (let i = 0; i < blades; i++) {
     const theta = (i / blades) * Math.PI * 2 + rng.range(-0.5, 0.5);
     const up = rng.range(0.7, 1.25);
-    const len = rng.range(0.2, 0.4);
+    const len = rng.range(0.045, 0.1);
     const col = dark.clone().lerp(teal, rng.next() * 0.6);
     const phase = rng.next() * Math.PI * 2;
     _m.makeRotationFromEuler(new Euler(0, -theta, 0, "YXZ"));
     b.section(_m, () => {
       b.grid(4, 1, (u, v, pos) => {
         const va = v * 2 - 1;
-        const half = 0.014 * Math.sin(Math.PI * Math.min(1, 0.2 + u * 0.85));
+        const half = 0.006 * Math.sin(Math.PI * Math.min(1, 0.2 + u * 0.85));
         pos.set(u * len * Math.cos(up * (1 - u * 0.4)), u * len * Math.sin(up * (1 - u * 0.4)), va * half);
         return {
-          color: col.clone().multiplyScalar(0.7 + 0.5 * u),
+          color: col.clone().multiplyScalar(0.75 + 0.45 * u),
           data: { s: u * 0.6, head: 0, flutter: 0.25 * u, phase },
         };
       });
@@ -968,7 +1099,16 @@ export function buildFoliageTuft(seed: number): PlantBuild {
   return { builder: b, headPivotY: 0.35 };
 }
 
-/** Huge soft foreground flower — silhouette donor for the extreme-blur zone. */
+/**
+ * EXTREME FOREGROUND flower — the near-lens forms that frame the shot.
+ *
+ * The reference's foreground masses are NOT circles: they are flower heads
+ * inches from the lens, seen strongly oblique (often nearly edge-on), so
+ * they project as ELONGATED, irregular, horizontally-biased smears, most of
+ * their geometry outside the frame. Built here as coarse original 3D heads
+ * with real cup morphology and near-edge-on orientation; the existing DOF
+ * does the rest. Blurred flower silhouette — never a colored disc.
+ */
 export function buildForegroundMass(
   seed: number,
   headY: number,
@@ -977,28 +1117,50 @@ export function buildForegroundMass(
 ): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
-  addStem(b, headY, diameter * 0.018, rng, { bow: rng.range(0.02, 0.06) });
+  addStem(b, headY, diameter * 0.02, rng, { bow: rng.range(0.02, 0.06) });
   // the neutral atlas mid-tones sit ~0.85; boost so masses stay luminous
   // through the heavy near-field defocus
   const cBase = srgb(tint).multiplyScalar(1.45);
-  headSection(b, headY, [rng.range(45, 85), rng.range(-40, 40), 0], () => {
-    addTexturedPetals(b, rng, {
-      count: rng.int(6, 8),
-      length: diameter * 0.42,
-      width: diameter * 0.34,
-      cone: 0.5,
-      cup: 0.5,
-      arch: 0.9,
-      baseRadius: diameter * 0.06,
-      nu: 4,
-      nv: 2,
-      wildness: 0.7,
-      curl: 0.35,
-      flutter: 0.35,
-      lum: [0.95, 1.35],
-      tint: cBase,
-    });
-    addTexturedCenter(b, rng, diameter * 0.11, diameter * 0.06);
+
+  // near edge-on: a shallow pitch is what turns a round head into a long
+  // smear. Roll tips the smear off horizontal, as in the reference.
+  const pitch = rng.range(6, 24);
+  const yaw = rng.range(-50, 50);
+  const roll = rng.range(-38, 38);
+
+  headSection(b, headY, [pitch, yaw, roll], () => {
+    // elongation: petals reach further along the head's X axis than its Z,
+    // so even a head-on glimpse stays oval rather than circular
+    const stretch = rng.range(1.35, 1.85);
+    for (const [count, lenK, widK, elev, flare, lum] of [
+      [6, 0.62, 0.34, 0.3, 0.4, [0.85, 1.2]],
+      [7, 0.52, 0.3, 0.62, 0.26, [1.0, 1.42]],
+    ] as [number, number, number, number, number, [number, number]][]) {
+      _m.makeScale(stretch, 1, 1 / stretch);
+      b.section(_m, () => {
+        addTexturedPetals(b, rng, {
+          count,
+          length: diameter * lenK,
+          width: diameter * widK,
+          cone: 0.14,
+          elevation: elev,
+          flare,
+          cup: 0.7,
+          arch: 0.7,
+          baseRadius: diameter * 0.05,
+          nu: 4,
+          nv: 2,
+          wildness: 0.85,
+          elevJitter: 0.24,
+          curl: 0.4,
+          flutter: 0.35,
+          lum,
+          aoBase: 0.5,
+          tint: cBase,
+        });
+      });
+    }
+    addTexturedCenter(b, rng, diameter * 0.1, diameter * 0.055);
   });
   return { builder: b, headPivotY: headY };
 }

@@ -32,7 +32,6 @@ import {
   Vector3,
   Vector4,
 } from "three";
-import { palette } from "../../config/palette";
 
 export function srgb(hex: string): Color {
   return new Color().setStyle(hex, SRGBColorSpace);
@@ -181,6 +180,9 @@ const VERT = /* glsl */ `
 const FRAG = /* glsl */ `
   #ifdef USE_PETAL_MAP
     uniform sampler2D uMap;
+    uniform vec3 uUnderside;
+    uniform float uTransmit;
+    uniform float uSpec;
   #endif
   uniform vec3 uLightDir;
   uniform vec3 uLightCol;
@@ -218,12 +220,21 @@ const FRAG = /* glsl */ `
     #endif
 
     vec3 N = normalize(vNormalW);
-    if (!gl_FrontFacing) N = -N;
+    bool back = !gl_FrontFacing;
+    if (back) N = -N;
     vec3 L = normalize(uLightDir);
+    vec3 V = normalize(cameraPosition - vWorldPos);
+
+    #ifdef USE_PETAL_MAP
+      // PETAL UNDERSIDE: the outer face of a petal is thicker, unlit and
+      // pigment-dense — the reference's cup rim and near petals read almost
+      // burgundy-navy. Structure, not noise: it follows the facing.
+      if (back && texFlag > 0.5) albedo *= uUnderside;
+    #endif
 
     float wrap = 0.65;
     float diff = clamp((dot(N, L) + wrap) / (1.0 + wrap), 0.0, 1.0);
-    vec3 hemi = mix(uGroundCol, uSkyCol, N.y * 0.5 + 0.5);
+    vec3 hemi = mix(uGroundCol, uSkyCol, N.y * 0.5 + 0.5) * 1.05;
     // thin-petal translucency: light leaking through from behind
     float sss = pow(clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0), 2.0) * uSss * vHeadFlag;
 
@@ -234,6 +245,22 @@ const FRAG = /* glsl */ `
     vec3 flatLit = uLightCol * 0.58 + uSkyCol * 0.12;
     vec3 col = albedo * mix(lit, flatLit, bloomF);
 
+    #ifdef USE_PETAL_MAP
+      if (texFlag > 0.5) {
+        // THICKNESS-DRIVEN TRANSMISSION: light passing through a thin petal.
+        // Grazing view + light behind = the hot pink glow of a backlit petal;
+        // the atlas's own base→tip ramp supplies the thickness gradient.
+        float wrapT = clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0);
+        float graze = 1.0 - abs(dot(N, V));
+        float trans = pow(wrapT, 2.2) * (0.35 + 0.65 * graze) * uTransmit;
+        col += albedo * uLightCol * trans;
+        // soft, wide specular — petals are waxy, never glossy
+        vec3 H = normalize(L + V);
+        float spec = pow(clamp(dot(N, H), 0.0, 1.0), 14.0) * uSpec * (back ? 0.25 : 1.0);
+        col += uLightCol * spec;
+      }
+    #endif
+
     // organic petal surface: fine static grain + soft cell mottling breaks
     // the airbrushed flatness of procedural color under close inspection
     if (vHeadFlag > 0.5 && texFlag < 0.5) {
@@ -242,16 +269,30 @@ const FRAG = /* glsl */ `
       col *= 0.94 + 0.06 * grain + 0.06 * mottle;
     }
 
+    // THIN-VEGETATION TRANSMISSION: stems and leaflets are translucent —
+    // they carry light through, so they read as cyan botanical filaments
+    // rather than black graphic lines.
+    float thin = (1.0 - vHeadFlag) * (1.0 - clamp(vFlutter * 2.0, 0.0, 1.0));
+    col += vColor * uSkyCol * thin * 0.2 * (0.45 + 0.55 * clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0));
+
     // soil occlusion: the meadow floor swallows light — but blossoms
     // (high flutter weight) glow through, like the reference's low red poms
-    float occ = mix(0.3, 1.0, smoothstep(0.02, 0.4, vWorldPos.y));
+    float occ = mix(0.2, 1.18, smoothstep(0.14, 0.6, vWorldPos.y));
     occ = mix(occ, 1.0, smoothstep(0.32, 0.5, vFlutter) * 0.85);
+    // ground shadow is a NEAR-FIELD effect: distant vegetation belongs to the
+    // luminous mass of the meadow, not to the shaded soil at our feet
+    float distOcc = length(vWorldPos - cameraPosition);
+    occ = mix(occ, 1.12, smoothstep(1.9, 4.2, distOcc));
     col *= occ;
 
     // atmospheric depth: sink toward deep teal with distance
     float dist = length(vWorldPos - cameraPosition);
-    float atm = smoothstep(uAtmRange.x, uAtmRange.y, dist);
-    col = mix(col, uAtmCol, atm * 0.6);
+    // stems/foliage dissolve into the teal atmosphere with distance; flower
+    // heads keep their contrast so the focal hierarchy survives
+    float atmStart = mix(1.0, 2.6, vHeadFlag);
+    float atmEnd = mix(3.8, 8.0, vHeadFlag);
+    float atm = smoothstep(atmStart, atmEnd, dist);
+    col = mix(col, uAtmCol, atm * mix(0.5, 0.34, vHeadFlag));
 
     gl_FragColor = vec4(col, 1.0);
   }
@@ -267,6 +308,12 @@ export interface VegetationMaterialOptions {
   /** Species petal atlas (see petalTextures.ts) — vertices with aTexFlag=1
    * sample it for albedo + alpha silhouette. */
   map?: Texture;
+  /** Multiplier applied to a petal's UNDERSIDE albedo (dense, unlit face). */
+  underside?: Vector3;
+  /** Backlit transmission strength through thin petals. */
+  transmit?: number;
+  /** Soft specular strength (waxy, never glossy). */
+  spec?: number;
 }
 
 export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): ShaderMaterial {
@@ -281,10 +328,10 @@ export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): 
       uBend: { value: new Vector4(0, 0, 0, 0) },
       uGust: { value: 0 },
       uLightDir: { value: new Vector3(-0.35, 0.85, 0.4).normalize() },
-      uLightCol: { value: srgb("#cfe4e4").multiplyScalar(1.32) },
-      uSkyCol: { value: srgb("#7fb4c4").multiplyScalar(1.12) },
-      uGroundCol: { value: srgb("#0d2b33") },
-      uAtmCol: { value: srgb(palette.bgTeal) },
+      uLightCol: { value: srgb("#d8e8e0").multiplyScalar(1.85) },
+      uSkyCol: { value: srgb("#93bfbc").multiplyScalar(1.15) },
+      uGroundCol: { value: srgb("#22443a") },
+      uAtmCol: { value: srgb("#3d6455") },
       uAtmRange: { value: new Vector2(2.2, 8.0) },
       uSss: { value: opts.sss ?? 0.85 },
     },
@@ -294,6 +341,11 @@ export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): 
   if (opts.map) {
     defines.USE_PETAL_MAP = 1;
     mat.uniforms.uMap = { value: opts.map };
+    mat.uniforms.uUnderside = {
+      value: opts.underside ?? new Vector3(0.58, 0.4, 0.66),
+    };
+    mat.uniforms.uTransmit = { value: opts.transmit ?? 0.72 };
+    mat.uniforms.uSpec = { value: opts.spec ?? 0.05 };
   }
   mat.defines = defines;
   return mat;

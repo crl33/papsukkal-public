@@ -11,7 +11,6 @@ import {
   Color,
   LinearFilter,
   Mesh,
-  MeshBasicMaterial,
   PlaneGeometry,
   RepeatWrapping,
   Scene,
@@ -34,19 +33,58 @@ const BACKDROP_FRAG = /* glsl */ `
   void main() {
     // vertical wash — muted teal-navy sinking to near-black soil line
     float t = clamp((vWorld.y + 2.0) / 9.0, 0.0, 1.0);
-    vec3 c = mix(vec3(0.003, 0.018, 0.032), vec3(0.011, 0.045, 0.065), smoothstep(0.1, 0.85, t));
+    vec3 c = mix(vec3(0.002, 0.008, 0.012), vec3(0.03, 0.1, 0.12), smoothstep(0.05, 0.8, t));
+    // warm sage band where the meadow sits — the reference's middle is a
+    // luminous olive-teal, never a navy void
+    float band = exp(-pow((vWorld.y - 0.95) / 2.1, 2.0));
+    c += vec3(0.05, 0.098, 0.078) * band;
+
+    // variation within the meadow band — warm ochre, dusty rose and deep
+    // voids, so the band never reads as one flat teal wash
+    c = blob(c, vec2(-1.5, 0.55), 1.5, vec3(0.075, 0.055, 0.022), 0.55);
+    c = blob(c, vec2(1.35, 0.35), 1.3, vec3(0.07, 0.05, 0.02), 0.45);
+    c = blob(c, vec2(0.2, -0.35), 1.7, vec3(0.012, 0.02, 0.016), 0.7);
+    c = blob(c, vec2(-2.7, -0.2), 1.2, vec3(0.008, 0.014, 0.014), 0.6);
+    c = blob(c, vec2(2.5, 1.15), 1.1, vec3(0.085, 0.03, 0.045), 0.4);
+    c = blob(c, vec2(-0.9, 1.5), 1.0, vec3(0.02, 0.055, 0.05), 0.4);
 
     // cyan sky-gap bokeh patch, top center-right (world coords at z=-11)
-    c = blob(c, vec2(0.55, 2.45), 1.0, vec3(0.10, 0.42, 0.58), 0.7);
-    c = blob(c, vec2(1.25, 2.7), 0.8, vec3(0.07, 0.30, 0.44), 0.55);
-    c = blob(c, vec2(-0.15, 2.25), 0.65, vec3(0.05, 0.22, 0.34), 0.4);
+    c = blob(c, vec2(0.75, 2.5), 1.75, vec3(0.10, 0.42, 0.58), 0.74);
+    c = blob(c, vec2(1.9, 2.75), 1.25, vec3(0.08, 0.33, 0.47), 0.6);
+    c = blob(c, vec2(0.05, 2.2), 1.2, vec3(0.06, 0.27, 0.4), 0.55);
     // faint warm murmur upper-left in the deep field
-    c = blob(c, vec2(-2.6, 2.3), 1.3, vec3(0.10, 0.02, 0.045), 0.7);
-    c = blob(c, vec2(-3.2, 2.8), 1.0, vec3(0.115, 0.02, 0.04), 0.55);
+    c = blob(c, vec2(-2.6, 2.3), 1.3, vec3(0.055, 0.012, 0.028), 0.75);
+    c = blob(c, vec2(-3.2, 2.8), 1.0, vec3(0.06, 0.012, 0.024), 0.6);
     // soft red field glow, mid-left and right
     c = blob(c, vec2(-2.2, 0.9), 1.2, vec3(0.10, 0.012, 0.03), 0.4);
     c = blob(c, vec2(2.9, 1.2), 1.4, vec3(0.09, 0.02, 0.028), 0.35);
 
+    gl_FragColor = vec4(c, 1.0);
+  }
+`;
+
+const GROUND_VERT = /* glsl */ `
+  varying vec2 vUv;
+  varying float vDist;
+  void main() {
+    vUv = uv * 8.0;
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    vDist = length(wp.xyz - cameraPosition);
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }
+`;
+
+const GROUND_FRAG = /* glsl */ `
+  uniform sampler2D uMap;
+  uniform vec3 uAtm;
+  varying vec2 vUv;
+  varying float vDist;
+  void main() {
+    vec3 c = texture2D(uMap, vUv).rgb;
+    // atmospheric perspective: the soil dissolves into the meadow haze long
+    // before its far edge, so no horizon line can form
+    float atm = smoothstep(3.0, 9.0, vDist);
+    c = mix(c, uAtm, atm * 0.96);
     gl_FragColor = vec4(c, 1.0);
   }
 `;
@@ -100,8 +138,20 @@ export function addEnvironment(scene: Scene): void {
   backdrop.position.set(0, cameraConfig.height, -backdropZ);
   scene.add(backdrop);
 
-  const ground = new Mesh(new PlaneGeometry(24, 24), new MeshBasicMaterial({ map: paintGround() }));
+  // The soil must never end in a visible horizon: it fades into the same
+  // atmosphere the backdrop paints, so the meadow reads as continuous depth.
+  const ground = new Mesh(
+    new PlaneGeometry(60, 60),
+    new ShaderMaterial({
+      uniforms: {
+        uMap: { value: paintGround() },
+        uAtm: { value: srgb("#1c3a31") },
+      },
+      vertexShader: GROUND_VERT,
+      fragmentShader: GROUND_FRAG,
+    }),
+  );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(0, 0, -8);
+  ground.position.set(0, 0, -16);
   scene.add(ground);
 }
