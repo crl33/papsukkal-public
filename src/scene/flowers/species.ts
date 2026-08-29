@@ -33,7 +33,7 @@ export function addStem(
   height: number,
   radius: number,
   rng: Rng,
-  opts: { bow?: number; color?: Color; flutterTop?: number; radial?: number; segs?: number } = {},
+  opts: { bow?: number; color?: Color; flutterTop?: number; radial?: number; segs?: number; sMax?: number } = {},
 ): void {
   const bowAmt = opts.bow ?? rng.range(0.008, 0.03);
   const bowAng = rng.range(0, Math.PI * 2);
@@ -62,7 +62,7 @@ export function addStem(
     normal.set(Math.cos(ang), 0, Math.sin(ang));
     pos.set(c.x + normal.x * r, c.y, c.z + normal.z * r);
     const col = color.clone().multiplyScalar(0.72 + 0.16 * u);
-    return { color: col, data: { s: u, head: 0, flutter: flutterTop * u * u, phase: 0 } };
+    return { color: col, data: { s: u * (opts.sMax ?? 1), head: 0, flutter: flutterTop * u * u, phase: 0 } };
   });
 }
 
@@ -240,12 +240,12 @@ export function addNaturalCenter(
     return { color: col, data: { s: 1, head: 1, flutter: 0.04 * u, phase: ang } };
   });
   // stamen blobs around the top rim + a few inner
-  const n = rng.int(9, 14);
+  const n = rng.int(12, 17);
   for (let i = 0; i < n; i++) {
-    const ang = (i / n) * Math.PI * 2 + rng.range(-0.2, 0.2);
-    const rr = radius * rng.range(0.55, 0.85);
-    const y = height * rng.range(0.55, 0.95);
-    const sr = radius * rng.range(0.1, 0.16);
+    const ang = (i / n) * Math.PI * 2 + rng.range(-0.09, 0.09);
+    const rr = radius * rng.range(0.68, 0.8);
+    const y = height * rng.range(0.6, 0.85);
+    const sr = radius * rng.range(0.105, 0.14);
     const col = varied(stamenA.clone().lerp(stamenB, rng.next()), rng, 0.05);
     addBlob(b, new Vector3(Math.cos(ang) * rr, y, Math.sin(ang) * rr), sr, 0.8, col, 1, 0.05, ang, 1);
   }
@@ -361,7 +361,7 @@ export function buildCosmos(
     // strong per-petal light variation + darker inner region
     const petalLum = 0.6 + 0.38 * (0.5 + 0.5 * Math.sin(petalIdx * 12.9898 + seed));
     c.multiplyScalar(petalLum * layerDim);
-    c.multiplyScalar(0.66 + 0.34 * smoothstep01(u * 3.2)); // dark throat
+    c.multiplyScalar(0.56 + 0.44 * smoothstep01(u * 2.6)); // dark throat
     c.multiplyScalar(0.9 + 0.1 * Math.abs(va));
     return c;
   };
@@ -381,7 +381,7 @@ export function buildCosmos(
       wildness: 0.85,
       curl: 0.35,
       flutter: 0.45,
-      colorFn: colorFn(0.72),
+      colorFn: colorFn(0.6),
     });
     // front layer: the readable petals
     addIrregularPetals(b, rng, {
@@ -548,11 +548,13 @@ export function buildMicroSprig(
   const rng = createRng(seed);
   const b = new GeomBuilder();
   const mainH = topY * 0.7;
-  addStem(b, mainH, 0.0016, rng, { bow: rng.range(0.015, 0.045), flutterTop: 0.15 });
+  // stem s runs 0..mainH/topY so pedicels/blooms (normalized by topY) share
+  // one bend convention — mismatched weights shear blooms off under wind
+  addStem(b, mainH, 0.0016, rng, { bow: rng.range(0.015, 0.045), flutterTop: 0.15, sMax: mainH / topY });
 
   const colors: Record<string, [Color, Color]> = {
     red: [srgb(palette.red), srgb(palette.crimson)],
-    blue: [srgb(palette.cobalt).multiplyScalar(0.85), srgb(palette.cobaltHi).multiplyScalar(0.85)],
+    blue: [srgb(palette.cobalt).multiplyScalar(0.7), srgb(palette.cobaltHi).multiplyScalar(0.7)],
     violet: [srgb(palette.violet).multiplyScalar(0.85), srgb(palette.violetHi).multiplyScalar(0.85)],
   };
   const [cA, cB] = colors[kind];
@@ -686,6 +688,9 @@ export function buildWiryStem(seed: number): PlantBuild {
     );
   };
 
+  // sBase/sSpan: bend weight tracks the ATTACH HEIGHT on the main stem, so a
+  // branch at t0 starts with the stem's own weight there and gains only its
+  // own vertical extent — otherwise side parts shear off under wind.
   const ribbon = (
     fn: (t: number, out: Vector3) => void,
     t0: number,
@@ -693,7 +698,8 @@ export function buildWiryStem(seed: number): PlantBuild {
     w0: number,
     segs: number,
     col: Color,
-    sScale = 1,
+    sBase = 0,
+    sSpan = 1,
   ) => {
     const c = new Vector3();
     b.grid(segs, 1, (u, v, pos, normal) => {
@@ -706,7 +712,7 @@ export function buildWiryStem(seed: number): PlantBuild {
       const shade = 0.55 + 0.45 * rngShade(t, seed);
       return {
         color: col.clone().multiplyScalar(shade),
-        data: { s: Math.min(1, t * sScale), head: 0, flutter: 0.12 * t, phase: seed % 7 },
+        data: { s: Math.min(1, sBase + t * sSpan), head: 0, flutter: 0.12 * (sBase + t * sSpan), phase: seed % 7 },
       };
     });
   };
@@ -733,12 +739,12 @@ export function buildWiryStem(seed: number): PlantBuild {
         bz + Math.sin(ang) * Math.cos(up) * tt * len * 0.6,
       );
     };
-    ribbon(branchFn, 0.05, 1, baseW * 0.6, 4, stemCol, 1);
+    ribbon(branchFn, 0.05, 1, baseW * 0.6, 4, stemCol, t0, Math.sin(up) * len);
     if (rng.next() < 0.3) {
       // small bud at branch tip — some teal, some red-tipped like the reference
       branchFn(1, cAt);
       const budCol =
-        rng.next() < 0.35
+        rng.next() < 0.25
           ? srgb(palette.red).multiplyScalar(1.1)
           : varied(srgb(palette.foliageTealMid), rng, 0.06).multiplyScalar(1.2);
       addBlob(b, cAt.clone(), rng.range(0.0035, 0.006), 1.25, budCol, Math.min(1, t0 + 0.2), 0.2, i * 2.1);
@@ -774,6 +780,8 @@ export function buildWiryStem(seed: number): PlantBuild {
       0.006,
       3,
       varied(srgb(palette.foliageTeal), rng, 0.08),
+      t0,
+      len * 0.7,
     );
   }
 

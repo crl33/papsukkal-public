@@ -215,13 +215,16 @@ export const foreground: Placement[] = [
   { id: "fg-red-bl", species: "softBokeh", screen: [0.10, 0.83], depth: 0.34, sizeFrac: 0.155, focusRole: "foreground", tint: "#b31220", seed: 141 },
   { id: "fg-crimson-c", species: "softBokeh", screen: [0.58, 0.79], depth: 0.30, sizeFrac: 0.175, focusRole: "foreground", tint: "#c11726", seed: 142 },
   { id: "fg-yellow-br", species: "softBokeh", screen: [0.80, 0.85], depth: 0.36, sizeFrac: 0.13, focusRole: "foreground", tint: "#e8ae1c", seed: 143 },
-  { id: "fg-orange-r", species: "softBokeh", screen: [0.93, 0.63], depth: 0.44, sizeFrac: 0.12, focusRole: "foreground", tint: palette.orange, seed: 144 },
-  { id: "fg-pink-l", species: "softBokeh", screen: [0.02, 0.21], depth: 0.5, sizeFrac: 0.11, focusRole: "foreground", tint: palette.magentaHi, seed: 145 },
+  { id: "fg-orange-r", species: "softBokeh", screen: [0.95, 0.66], depth: 0.44, sizeFrac: 0.10, focusRole: "foreground", tint: palette.orange, seed: 144 },
+  { id: "fg-pink-l", species: "softBokeh", screen: [0.02, 0.21], depth: 0.5, sizeFrac: 0.10, focusRole: "foreground", tint: "#8e3a62", seed: 145 },
   { id: "fg-magenta-l2", species: "softBokeh", screen: [0.005, 0.38], depth: 0.55, sizeFrac: 0.09, focusRole: "foreground", tint: palette.magenta, seed: 146 },
   { id: "fg-red-corner", species: "softBokeh", screen: [0.025, 0.95], depth: 0.28, sizeFrac: 0.19, focusRole: "foreground", tint: "#a51320", seed: 180 },
   { id: "fg-magenta-bl", species: "softBokeh", screen: [0.15, 0.99], depth: 0.33, sizeFrac: 0.13, focusRole: "foreground", tint: palette.magentaDeep, seed: 181 },
   { id: "fg-orange-r2", species: "softBokeh", screen: [0.995, 0.78], depth: 0.4, sizeFrac: 0.12, focusRole: "foreground", tint: palette.orange, seed: 182 },
   { id: "fg-crimson-c2", species: "softBokeh", screen: [0.68, 0.92], depth: 0.32, sizeFrac: 0.15, focusRole: "foreground", tint: "#b31220", seed: 183 },
+  { id: "fg-violet-c", species: "softBokeh", screen: [0.44, 0.82], depth: 0.42, sizeFrac: 0.07, focusRole: "foreground", tint: "#4c39c4", seed: 184 },
+  { id: "fg-violet-c2", species: "softBokeh", screen: [0.52, 0.96], depth: 0.36, sizeFrac: 0.08, focusRole: "foreground", tint: "#53309e", seed: 185 },
+  { id: "fg-blue-c", species: "softBokeh", screen: [0.37, 0.95], depth: 0.4, sizeFrac: 0.06, focusRole: "foreground", tint: "#2438a8", seed: 186 },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -230,10 +233,10 @@ export const foreground: Placement[] = [
 
 export const background: Placement[] = [
   // defocused poppies (ring + dark heart)
-  { id: "bg-poppy-1", species: "poppyBokeh", screen: [0.68, 0.09], depth: 3.4, sizeFrac: 0.085, focusRole: "background", tint: "#ff2530", seed: 150 },
-  { id: "bg-poppy-2", species: "poppyBokeh", screen: [0.80, 0.05], depth: 3.8, sizeFrac: 0.09, focusRole: "background", tint: "#ff2530", seed: 151 },
-  { id: "bg-poppy-3", species: "poppyBokeh", screen: [0.86, 0.15], depth: 3.2, sizeFrac: 0.08, focusRole: "background", tint: "#f2232e", seed: 152 },
-  { id: "bg-poppy-4", species: "poppyBokeh", screen: [0.97, 0.02], depth: 4.0, sizeFrac: 0.085, focusRole: "background", tint: "#ff2530", seed: 153 },
+  { id: "bg-poppy-1", species: "poppyBokeh", screen: [0.68, 0.09], depth: 3.4, sizeFrac: 0.07, focusRole: "background", tint: "#ff2530", seed: 150 },
+  { id: "bg-poppy-2", species: "poppyBokeh", screen: [0.80, 0.05], depth: 3.8, sizeFrac: 0.072, focusRole: "background", tint: "#ff2530", seed: 151 },
+  { id: "bg-poppy-3", species: "poppyBokeh", screen: [0.86, 0.15], depth: 3.2, sizeFrac: 0.065, focusRole: "background", tint: "#f2232e", seed: 152 },
+  { id: "bg-poppy-4", species: "poppyBokeh", screen: [0.97, 0.02], depth: 4.0, sizeFrac: 0.068, focusRole: "background", tint: "#ff2530", seed: 153 },
   { id: "bg-red-tc", species: "softBokeh", screen: [0.37, 0.06], depth: 4.5, sizeFrac: 0.07, focusRole: "background", tint: palette.red, seed: 154 },
   { id: "bg-red-tc2", species: "softBokeh", screen: [0.44, 0.035], depth: 5.0, sizeFrac: 0.06, focusRole: "background", tint: palette.crimson, seed: 155 },
   // dark maroon top-left
@@ -250,7 +253,7 @@ export const background: Placement[] = [
   { id: "bg-cyan-3", species: "softBokeh", screen: [0.73, 0.12], depth: 6.5, sizeFrac: 0.07, focusRole: "background", tint: palette.cyanGapDim, seed: 164 },
   { id: "bg-cyan-4", species: "softBokeh", screen: [0.52, 0.10], depth: 6.8, sizeFrac: 0.06, focusRole: "background", tint: "#1d5a74", seed: 165 },
   // pink left edge
-  { id: "bg-pink-l", species: "softBokeh", screen: [0.03, 0.17], depth: 2.2, sizeFrac: 0.10, focusRole: "background", tint: "#c05a9a", seed: 166 },
+  { id: "bg-pink-l", species: "softBokeh", screen: [0.03, 0.17], depth: 2.2, sizeFrac: 0.09, focusRole: "background", tint: "#7e3358", seed: 166 },
   // soft red presence, left-center band (fills the void beside the hero)
   { id: "bg-red-lc1", species: "softBokeh", screen: [0.115, 0.38], depth: 2.0, sizeFrac: 0.085, focusRole: "background", tint: "#8e1220", seed: 167 },
   { id: "bg-red-lc2", species: "softBokeh", screen: [0.045, 0.47], depth: 1.8, sizeFrac: 0.075, focusRole: "background", tint: "#a01523", seed: 168 },
@@ -289,6 +292,7 @@ export const tangleZones: ScatterZone[] = [
   { cx: 0.62, cy: 0.52, rx: 0.16, ry: 0.2, w: 0.7 },
   { cx: 0.16, cy: 0.6, rx: 0.13, ry: 0.18, w: 0.6 },
   { cx: 0.5, cy: 0.22, rx: 0.26, ry: 0.14, w: 0.32 },
+  { cx: 0.5, cy: 0.4, rx: 0.34, ry: 0.09, w: 0.22 },
   { cx: 0.85, cy: 0.45, rx: 0.13, ry: 0.25, w: 0.55 },
   { cx: 0.75, cy: 0.72, rx: 0.14, ry: 0.14, w: 0.5 },
 ];
@@ -337,29 +341,38 @@ export const bgField: BgCluster[] = [
   // top-right poppy rings
   {
     zone: { cx: 0.8, cy: 0.09, rx: 0.14, ry: 0.09, w: 1 },
-    depth: [3.0, 4.2],
-    sizeFrac: [0.06, 0.095],
+    depth: [3.2, 4.2],
+    sizeFrac: [0.048, 0.072],
     colors: ["#ff2530", "#f2232e", "#e01c28"],
     kinds: [1, 1, 2],
     count: 7,
   },
+  // top-center cyan sky-gap — the luminous patch the eye rests on
+  {
+    zone: { cx: 0.60, cy: 0.07, rx: 0.05, ry: 0.05, w: 1 },
+    depth: [4.2, 5.2],
+    sizeFrac: [0.07, 0.10],
+    colors: ["#3fa9c9", "#2a8fb4"],
+    kinds: [3],
+    count: 3,
+  },
   // top-right azure/cobalt discs (sky gaps between flowers)
   {
     zone: { cx: 0.78, cy: 0.05, rx: 0.12, ry: 0.06, w: 1 },
-    depth: [5.0, 7.0],
-    sizeFrac: [0.05, 0.08],
+    depth: [3.8, 5.0],
+    sizeFrac: [0.045, 0.07],
     colors: ["#2a6fd4", "#3fa9c9", "#2a7fa0"],
     kinds: [3, 0],
     count: 4,
   },
   // right band magenta/violet/orange
   {
-    zone: { cx: 0.93, cy: 0.38, rx: 0.08, ry: 0.18, w: 1 },
-    depth: [2.0, 3.0],
-    sizeFrac: [0.07, 0.11],
+    zone: { cx: 0.93, cy: 0.36, rx: 0.07, ry: 0.12, w: 1 },
+    depth: [2.2, 3.0],
+    sizeFrac: [0.06, 0.09],
     colors: ["#7a3bd4", "#c2258f", "#ee7d0e", "#9b59e8"],
     kinds: [2, 0],
-    count: 6,
+    count: 4,
   },
   // luminous teal foliage glow behind the center flowers
   {

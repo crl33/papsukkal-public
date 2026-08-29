@@ -51,6 +51,11 @@ const GRADE_FRAG = /* glsl */ `
     float satAmt = mix(saturation, 1.0, smoothstep(0.75, 1.0, l2));
     c = mix(vec3(l2), c, satAmt);
 
+    // gamut floor: photographic saturated color never crushes a channel to
+    // zero — lift the weakest channel to a fraction of the strongest
+    float cmax = max(c.r, max(c.g, c.b));
+    c = max(c, vec3(cmax * 0.085));
+
     // vignette
     vec2 q = uv - 0.5;
     float vig = 1.0 - smoothstep(0.35, 0.95, length(q) * 1.25) * vignette;
@@ -72,7 +77,7 @@ export class GradeEffect extends Effect {
         ["shadowTint", new Uniform(new Vector3(0.62, 0.85, 1.0))],
         ["saturation", new Uniform(1.14)],
         ["vignette", new Uniform(0.42)],
-        ["grain", new Uniform(0.012)],
+        ["grain", new Uniform(0.008)],
         ["contrast", new Uniform(1.06)],
         ["grainTime", new Uniform(0)],
       ]),

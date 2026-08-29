@@ -135,3 +135,23 @@ Non-negotiable color rules:
    to wind-driven stems, so their silhouettes breathe.
 7. Grading: AgX/filmic base + teal-shifted shadows, magenta-protected
    saturation, gentle vignette — implemented as a custom post effect.
+
+## 9. Floral art-direction v2 (reference reconstruction pass)
+
+A second pass rebuilt the floral landscape against the photograph:
+
+- **Irregular petals**: heroes use `addIrregularPetals` — uneven lengths,
+  jittered spacing, per-petal droop/lift/twist/tip-curl, wavy ragged edges,
+  two staggered layers, per-petal luminance; centers are domed cones with a
+  physical stamen-bead ring (reads as a crescent under head tilt).
+- **Density map**: filler vegetation (wiry branching stems, feathery
+  filigree, floor tufts) is scattered by screen-space elliptical zones
+  matching §7's distribution, never uniformly.
+- **Background flower field**: generated clusters of petal-silhouette /
+  poppy-ring / azure-disc impostors (`composition.bgField`) so the defocused
+  field reads as *flowers*, not gradient fog. The DOF far field caps at the
+  C pyramid level to keep those forms structured.
+- **Micro-blooms**: red clusters are multi-lobed pom sprays with flat-lit
+  scatter shading (soil-occlusion relief keyed to blossom flutter weight).
+- The frame's bottom edge is sealed by defocused violet/blue/crimson masses
+  (§3) — no sharp geometry touches the near frame boundary.

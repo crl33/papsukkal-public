@@ -70,6 +70,11 @@ beyond what single-kernel gather DOF does cleanly, so the pass is custom:
    depth buffer with a saturating physical curve `c ∝ |d − f| / d`, blending
    between sharp/A/B/C/D. Near CoC rides the pyramid's alpha, so foreground
    blur *dilates and spills* over the sharp midground like a real lens.
+   The far field caps at level C (distant flowers stay *structured* bokeh
+   discs rather than fog, with only the deepest layer blending partway to
+   D); the creamiest D level is otherwise reserved for the near field —
+   matching how real lenses render foreground defocus creamier than
+   background.
 
 Because CoC comes from scene depth, anything that moves through the focus
 plane sharpens or softens by itself — the DOF is structural, not painted.
@@ -135,8 +140,13 @@ heroes consume it as uniforms, instanced systems as instanced attributes.
 
 - **Heroes** (~38 meshes): individually built geometry, unique art
   direction, per-mesh materials (one shared shader program).
-- **Instanced systems**: filler stems, mid-distance soft blooms, foliage
+- **Instanced systems**: wiry tangle stems (curved/branching, nodding
+  buds), feathery filigree clumps, mid-distance soft blooms, foliage
   tufts — one draw call each, per-instance bend/gust/tint attributes.
+  Scatter follows hand-authored screen-space density zones
+  (`composition.tangleZones`/`featherZones`/`bgField`) transcribed from the
+  reference's distribution, projected to continuous depth through the
+  locked camera.
 - **Background impostors** (`BokehSprites`): flat discs with real depth;
   the DOF turns them into authentic bokeh (defocused-poppy rings, soft
   blobs). Used only beyond ~2 m where blur destroys interior detail.

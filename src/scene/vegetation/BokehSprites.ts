@@ -69,12 +69,12 @@ const FRAG = /* glsl */ `
       if (r > mask) discard;
       // luminous mid-petal zone, slightly darker heart and rim
       col = vTint * (0.55 + 0.65 * smoothstep(0.05, 0.42, r)) * (1.0 - 0.25 * smoothstep(0.75, 1.0, r / mask));
-      col = mix(col, vTint * 0.25, smoothstep(0.16, 0.0, r));
+      col = mix(col, vTint * 0.25, 1.0 - smoothstep(0.0, 0.16, r));
     } else if (kind > 0.5) {
       // defocused poppy: dark heart, hot ring, darker rim
       if (r > 1.0) discard;
       vec3 heart = vTint * 0.12;
-      vec3 ring = vTint * 1.6;
+      vec3 ring = vTint * 2.1;
       col = mix(heart, ring, smoothstep(0.18, 0.5, r));
       col *= 1.0 - 0.3 * smoothstep(0.78, 1.0, r);
     } else {

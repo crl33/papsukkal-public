@@ -116,8 +116,14 @@ const COMPOSITE_FRAG = /* glsl */ `
     vec3 c = texture2D(inputBuffer, vUv).rgb;
     c = mix(c, a.rgb, smoothstep(0.0, 0.22, w));
     c = mix(c, bb.rgb, smoothstep(0.18, 0.45, w));
-    c = mix(c, cc.rgb, smoothstep(0.4, 0.7, w));
-    c = mix(c, dd.rgb, smoothstep(0.65, 1.0, w));
+    c = mix(c, cc.rgb, smoothstep(0.4, 0.75, w));
+    // the widest, creamiest level is mostly reserved for the NEAR field:
+    // real lenses render foreground defocus creamier than background. The far
+    // field caps at C (structured bokeh discs, not fog) except the very
+    // deepest layer, which blends partway toward D.
+    float wNear = max(coc.x, nearSpread);
+    c = mix(c, dd.rgb, smoothstep(0.75, 1.0, coc.y) * 0.55);
+    c = mix(c, dd.rgb, smoothstep(0.6, 0.95, wNear));
 
     gl_FragColor = vec4(c, 1.0);
   }

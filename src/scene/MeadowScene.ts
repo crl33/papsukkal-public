@@ -205,13 +205,17 @@ export class MeadowScene {
     const rng = createRng(SCATTER_SEED);
 
     // wiry stems: several geometry variants, zone-driven
-    const stemVariants = [buildWiryStem(9001), buildWiryStem(9002), buildWiryStem(9003), buildWiryStem(9004)];
-    const perVariant = Math.floor(66 * quality.vegetationDensity);
+    const stemVariants = [
+      buildWiryStem(9001), buildWiryStem(9002), buildWiryStem(9003), buildWiryStem(9004),
+      buildWiryStem(9005), buildWiryStem(9006), buildWiryStem(9007),
+    ];
+    const perVariant = Math.floor(38 * quality.vegetationDensity);
     stemVariants.forEach((variant, vi) => {
       const instances = [];
       let guard = 0;
       while (instances.length < perVariant && guard++ < perVariant * 10) {
         const [nx, ny] = this.sampleZone(rng, tangleZones);
+        if (ny > 0.88) continue; // the frame's bottom edge is sealed by defocused masses
         const depth = 0.95 + 1.85 * rng.next() ** 1.15; // continuous, biased near focus
         const [x, yTop, z] = placeFromScreen(nx, ny, depth);
         if (yTop < 0.14 || yTop > 1.05) continue;

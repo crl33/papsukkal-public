@@ -87,6 +87,7 @@ const VERT = /* glsl */ `
   varying vec3 vWorldPos;
   varying float vHeadFlag;
   varying float vFlutter;
+  varying float vPhase;
   varying vec2 vUv;
 
   ${GLSL_HELPERS}
@@ -167,6 +168,7 @@ const VERT = /* glsl */ `
     vWorldPos = wp;
     vHeadFlag = isHead;
     vFlutter = aData.z;
+    vPhase = aData.w;
     vUv = uv;
     gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
   }
@@ -186,6 +188,7 @@ const FRAG = /* glsl */ `
   varying vec3 vWorldPos;
   varying float vHeadFlag;
   varying float vFlutter;
+  varying float vPhase;
   varying vec2 vUv;
 
   float hash12(vec2 p) {
@@ -207,7 +210,7 @@ const FRAG = /* glsl */ `
 
     // tiny sprig blossoms (non-head, high flutter weight) scatter light like
     // the reference's red poms — flatten their shading toward even brightness
-    float bloomF = clamp(vFlutter * 1.7, 0.0, 0.85) * (1.0 - vHeadFlag);
+    float bloomF = smoothstep(0.32, 0.5, vFlutter) * 0.85 * (1.0 - vHeadFlag);
     vec3 lit = hemi * 0.5 + uLightCol * (diff * 0.95 + sss * 0.55);
     vec3 flatLit = uLightCol * 0.58 + uSkyCol * 0.12;
     vec3 col = vColor * mix(lit, flatLit, bloomF);
@@ -215,15 +218,15 @@ const FRAG = /* glsl */ `
     // organic petal surface: fine static grain + soft cell mottling breaks
     // the airbrushed flatness of procedural color under close inspection
     if (vHeadFlag > 0.5) {
-      float grain = hash12(floor(vUv * 96.0) + floor(vWorldPos.xz * 700.0));
-      float mottle = hash12(floor(vUv * vec2(7.0, 16.0)) + floor(vWorldPos.xz * 90.0));
+      float grain = hash12(floor(vUv * 96.0) + vPhase * 100.0);
+      float mottle = hash12(floor(vUv * vec2(7.0, 16.0)) + vPhase * 37.0);
       col *= 0.94 + 0.06 * grain + 0.06 * mottle;
     }
 
     // soil occlusion: the meadow floor swallows light — but blossoms
     // (high flutter weight) glow through, like the reference's low red poms
     float occ = mix(0.3, 1.0, smoothstep(0.02, 0.4, vWorldPos.y));
-    occ = mix(occ, 1.0, clamp(vFlutter * 1.7, 0.0, 0.85));
+    occ = mix(occ, 1.0, smoothstep(0.32, 0.5, vFlutter) * 0.85);
     col *= occ;
 
     // atmospheric depth: sink toward deep teal with distance
@@ -261,7 +264,7 @@ export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): 
       uGroundCol: { value: srgb("#0d2b33") },
       uAtmCol: { value: srgb(palette.bgTeal) },
       uAtmRange: { value: new Vector2(2.2, 8.0) },
-      uSss: { value: opts.sss ?? 0.65 },
+      uSss: { value: opts.sss ?? 0.85 },
     },
   });
   if (opts.instanced) {
