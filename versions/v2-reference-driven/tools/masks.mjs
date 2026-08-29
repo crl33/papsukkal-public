@@ -123,6 +123,70 @@ export const riggedLayers = [
     `,
     feather: 14,
   },
+  /* ---- broadened participation: clusters, accents, nodding buds ---- */
+  {
+    id: "red-spray",
+    rect: [0.27, 0.385, 0.235, 0.32],
+    svg: `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${IMG_W}" height="${IMG_H}">
+        <ellipse cx="447" cy="400" rx="85" ry="60" fill="white"/>
+        <ellipse cx="432" cy="470" rx="62" ry="58" fill="white"/>
+        <ellipse cx="470" cy="520" rx="60" ry="45" fill="white"/>
+      </svg>
+    `,
+    feather: 6,
+  },
+  {
+    id: "daisy-pair",
+    rect: [0.585, 0.405, 0.08, 0.175],
+    svg: `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${IMG_W}" height="${IMG_H}">
+        <circle cx="789" cy="366" r="24" fill="white"/>
+        <circle cx="764" cy="411" r="21" fill="white"/>
+        <path d="M 789 388 C 787 402 785 416 783 430" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/>
+        <path d="M 764 430 C 762 440 761 450 760 460" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+    `,
+    fadeOut: { y0: 448, y1: 470 },
+    feather: 1.8,
+  },
+  {
+    id: "yellow-edge",
+    rect: [0.672, 0.352, 0.115, 0.15],
+    svg: `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${IMG_W}" height="${IMG_H}">
+        <ellipse cx="894" cy="333" rx="50" ry="32" fill="white"/>
+        <ellipse cx="868" cy="342" rx="36" ry="26" fill="white"/>
+        <path d="M 880 352 C 876 368 872 384 868 400" fill="none" stroke="white" stroke-width="10" stroke-linecap="round"/>
+      </svg>
+    `,
+    fadeOut: { y0: 386, y1: 406 },
+    feather: 2.2,
+  },
+  {
+    id: "bud-pair",
+    rect: [0.47, 0.13, 0.08, 0.41],
+    svg: `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${IMG_W}" height="${IMG_H}">
+        <circle cx="615" cy="128" r="14" fill="white"/>
+        <circle cx="646" cy="144" r="12" fill="white"/>
+        <path d="M 617 140 C 622 220 628 300 634 380 C 636 402 638 414 640 424" fill="none" stroke="white" stroke-width="9" stroke-linecap="round"/>
+        <path d="M 647 155 C 652 230 656 300 660 372" fill="none" stroke="white" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+    `,
+    fadeOut: { y0: 400, y1: 428 },
+    feather: 1.8,
+  },
+  {
+    id: "violet-c",
+    rect: [0.45, 0.695, 0.125, 0.185],
+    svg: `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${IMG_W}" height="${IMG_H}">
+        <ellipse cx="628" cy="640" rx="55" ry="45" fill="white"/>
+      </svg>
+    `,
+    feather: 10,
+  },
 ];
 
 /**
@@ -137,4 +201,5 @@ export const qcRegions = [
   { id: "cosmos-2", core: { cx: 588, cy: 306, r: 52 }, metric: "magenta" },
   { id: "orange-ur", core: { cx: 1029, cy: 222, r: 50 }, metric: "orange" },
   { id: "orange-lr", core: { cx: 1087, cy: 491, r: 44 }, metric: "orange" },
+  { id: "red-spray", core: { cx: 442, cy: 428, r: 38 }, metric: "magenta" },
 ];

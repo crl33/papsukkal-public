@@ -52,10 +52,16 @@ hard way).
 
 ## Runtime
 
-- **Layers** (`src/config/layers.ts`): plate + 5 rigged flowers (both
-  cosmos, white daisy, two orange daisies) + 3 foreground masses, drawn in
-  painter's order under an orthographic camera in image space with
-  CSS-`object-fit: cover` framing semantics. The composition is locked.
+- **Layers** (`src/config/layers.ts`): plate + 13 coherent moving units —
+  both cosmos, the white daisy and its accent pair, both orange daisies,
+  the yellow edge-on bloom, the nodding bud-stem pair, the red
+  micro-bloom spray, the violet cluster, and three foreground blur
+  masses — in painter's order under an orthographic camera in image space
+  with CSS-`object-fit: cover` framing semantics. The composition is
+  locked. Every moving unit is a full botanical silhouette (head, petals,
+  center, stem to its occlusion point); the runtime clamps displacement
+  (~16px soft-tanh) below the plate's reconstruction margin (~18px), so a
+  sway can only ever reveal reconstructed background.
 - **Deformation** (`src/shaders/layerMaterial.ts`): per-vertex weight
   `W = max(env(t), headW)` where `t` is progress along the root→head axis,
   `env` is V1's root-fixed bend envelope `t²(0.4+0.6t)`, and `headW` is a
