@@ -47,6 +47,18 @@ and were clean. That one is a human judgement, not a gate.
 Tag `v1-procedural` and branch `archive/v1-procedural` hold V1 as it was at the
 redirection. The working V1 tree has since diverged — that is expected.
 
+## This workspace
+
+Cold-walk validated on 2026-08-29: four agents with no memory of the repository
+were given only these documents and told to do real tasks. All four oriented;
+the trap held at hop 0. It found 15 defects — all fixed — the worst being a dead
+route in the root entry file that the link guard could not see. See
+`../30-experiments/2026-08-29-cold-walk-validation.md`.
+
+`npm run check` now covers the root entry files and `docs/` as well as this
+workspace. Run the walk test again after any substantial change to routing:
+author-side review cannot find that class of defect.
+
 ## Known limits
 
 - The midground still reads sparser and darker than the reference (see above).
