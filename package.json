@@ -1,7 +1,7 @@
 {
   "name": "papsukkal-public-root",
   "private": true,
-  "description": "Orchestration only — each version under versions/ is a fully independent app.",
+  "description": "Orchestration only \u2014 each version under versions/ is a fully independent app.",
   "scripts": {
     "dev:v1": "npm --prefix versions/v1-procedural run dev",
     "dev:v2": "npm --prefix versions/v2-reference-driven run dev",
@@ -10,6 +10,10 @@
     "test:v1": "npm --prefix versions/v1-procedural test",
     "test:v2": "npm --prefix versions/v2-reference-driven test",
     "install:v1": "npm --prefix versions/v1-procedural install",
-    "install:v2": "npm --prefix versions/v2-reference-driven install"
+    "install:v2": "npm --prefix versions/v2-reference-driven install",
+    "twins": "node scripts/sync-twins.mjs",
+    "twins:check": "node scripts/sync-twins.mjs --check",
+    "workspace:check": "node scripts/check-workspace-links.mjs",
+    "check": "npm run twins:check && npm run workspace:check"
   }
 }
