@@ -121,11 +121,11 @@ export class PlantSim {
     this.params[p + 9] = mech.headGain * vary();
     this.turb[i] = mech.turbulence;
 
-    // start at rest with a touch of seeded rest-curvature (not everything is
-    // perfectly vertical in still air)
-    const d = i * D;
-    this.dyn[d] = rng.range(-0.15, 0.15) * mech.maxBendFrac * height;
-    this.dyn[d + 1] = rng.range(-0.15, 0.15) * mech.maxBendFrac * height;
+    // V2 CHANGE (vs the copied V1 source): V1 seeded a random rest-curvature
+    // here so procedural plants didn't all stand perfectly vertical. In V2
+    // the photograph itself encodes every plant's rest pose, so the
+    // simulation MUST be exactly zero at rest — any offset would displace
+    // the reference pixels at wind=0 and break the static-fidelity gate.
     return i;
   }
 

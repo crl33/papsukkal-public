@@ -70,3 +70,14 @@ describe("layer manifest", () => {
     expect(new Set(layers.map((l) => l.order)).size).toBe(layers.length);
   });
 });
+
+describe("mask/manifest parity", () => {
+  it("every rigged layer's crop rect matches its mask spec exactly", async () => {
+    const { riggedLayers } = await import("../../tools/masks.mjs");
+    for (const m of riggedLayers as { id: string; rect: number[] }[]) {
+      const l = layers.find((x) => x.id === m.id);
+      expect(l, m.id).toBeDefined();
+      expect(l!.rect, m.id).toEqual(m.rect);
+    }
+  });
+});

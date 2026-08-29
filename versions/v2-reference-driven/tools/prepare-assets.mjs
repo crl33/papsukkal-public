@@ -37,25 +37,45 @@ async function buildMask(layer) {
     mask[i] = Math.min(255, (svgRaw[i * 4] * svgRaw[i * 4 + 3]) / 255);
   }
 
-  // chroma key inside ROI
-  const { cx, cy, rx, ry } = layer.roi;
-  for (let y = Math.max(0, cy - ry); y <= Math.min(IMG_H - 1, cy + ry); y++) {
-    for (let x = Math.max(0, cx - rx); x <= Math.min(IMG_W - 1, cx + rx); x++) {
-      const ex = (x - cx) / rx;
-      const ey = (y - cy) / ry;
-      if (ex * ex + ey * ey > 1) continue;
-      const i = (y * IMG_W + x) * 4;
-      const m = ref[i] - ref[i + 1] + 0.45 * (ref[i + 2] - ref[i + 1]);
-      const value = Math.max(ref[i], ref[i + 1], ref[i + 2]);
-      // radial falloff: demand a stronger chroma score toward the ROI edge
-      const rr = Math.sqrt(ex * ex + ey * ey);
-      let thr = layer.chromaThreshold + Math.max(0, rr - 0.72) * 220;
-      if (layer.valueGate && value < layer.valueGate.minValue) {
-        thr = Math.max(thr, layer.valueGate.darkThreshold);
-      }
-      if (m > thr) {
-        const idx = y * IMG_W + x;
-        mask[idx] = Math.max(mask[idx], Math.min(255, (m - thr) * 8));
+  // chroma key inside ROI (skipped for SVG-only layers)
+  if (layer.roi && layer.key) {
+    const { cx, cy, rx, ry } = layer.roi;
+    for (let y = Math.max(0, cy - ry); y <= Math.min(IMG_H - 1, cy + ry); y++) {
+      for (let x = Math.max(0, cx - rx); x <= Math.min(IMG_W - 1, cx + rx); x++) {
+        const ex = (x - cx) / rx;
+        const ey = (y - cy) / ry;
+        if (ex * ex + ey * ey > 1) continue;
+        const i = (y * IMG_W + x) * 4;
+        const R = ref[i];
+        const G = ref[i + 1];
+        const B = ref[i + 2];
+        const value = Math.max(R, G, B);
+        const rr = Math.sqrt(ex * ex + ey * ey);
+
+        let score;
+        let thr;
+        if (layer.key === "white") {
+          // bright + low chroma spread = white petals
+          const spread = value - Math.min(R, G, B);
+          const g = layer.whiteGate;
+          score = value >= g.minValue && spread <= g.maxChromaSpread ? 255 : 0;
+          thr = 1;
+          if (rr > 0.85) score = 0;
+        } else {
+          score =
+            layer.key === "orange"
+              ? R - B + 0.3 * (G - B)
+              : R - G + 0.45 * (B - G);
+          // radial falloff: demand a stronger score toward the ROI edge
+          thr = layer.chromaThreshold + Math.max(0, rr - 0.72) * 220;
+          if (layer.valueGate && value < layer.valueGate.minValue) {
+            thr = Math.max(thr, layer.valueGate.darkThreshold);
+          }
+        }
+        if (score > thr) {
+          const idx = y * IMG_W + x;
+          mask[idx] = Math.max(mask[idx], Math.min(255, (score - thr) * 8));
+        }
       }
     }
   }
@@ -81,7 +101,7 @@ async function buildMask(layer) {
   const feathered = await sharp(Buffer.from(cur), {
     raw: { width: IMG_W, height: IMG_H, channels: 1 },
   })
-    .blur(1.6)
+    .blur(layer.feather ?? 1.6)
     .raw()
     .toBuffer({ resolveWithObject: true });
   const ch = feathered.info.channels;

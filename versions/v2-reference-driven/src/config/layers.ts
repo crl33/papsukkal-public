@@ -46,8 +46,15 @@ export interface LayerDef {
 }
 
 /**
- * v0 — one-flower proof (spec §22): the clean plate plus the hero magenta
- * cosmos with its stem. Expand only after the zero-motion gate passes.
+ * The principal movers, expanded after the one-flower proof passed
+ * (spec §21 phases 9–10): both cosmos, the white daisy, both orange
+ * daisies, and the three big foreground blur masses (near-field drift).
+ * The far background stays atmospheric and still (spec §16) — its blur
+ * hides nothing, so motion there risks more than it adds.
+ *
+ * windPos values reuse the V1 composition's world coordinates for each
+ * flower, so the shared field's gust fronts cross V2's layers with the
+ * same spatial timing V1's meadow had.
  */
 export const layers: LayerDef[] = [
   {
@@ -55,6 +62,36 @@ export const layers: LayerDef[] = [
     file: "reference/layers/plate.jpg",
     rect: [0, 0, 1, 1],
     order: 0,
+  },
+  {
+    id: "cosmos-2",
+    file: "reference/layers/cosmos-2.png",
+    rect: [0.395, 0.27, 0.175, 0.4],
+    order: 8,
+    rig: {
+      root: [0.437, 0.617],
+      head: [0.4734, 0.3723],
+      headRadius: 0.074,
+      mechanics: "cosmosHero",
+      windPos: [-0.02, -1.26, 0.55],
+      bendScale: 0.48,
+      rotGain: 0.5,
+    },
+  },
+  {
+    id: "daisy-white",
+    file: "reference/layers/daisy-white.png",
+    rect: [0.505, 0.29, 0.085, 0.155],
+    order: 9,
+    rig: {
+      root: [0.54, 0.415],
+      head: [0.545, 0.3345],
+      headRadius: 0.034,
+      mechanics: "daisySmall",
+      windPos: [0.03, -1.3, 0.55],
+      bendScale: 0.42,
+      rotGain: 0.4,
+    },
   },
   {
     id: "hero-cosmos",
@@ -71,6 +108,82 @@ export const layers: LayerDef[] = [
       // V2 aims for "quietly alive" — roughly a third of physical amplitude
       bendScale: 0.5,
       rotGain: 0.55,
+    },
+  },
+  {
+    id: "orange-ur",
+    file: "reference/layers/orange-ur.png",
+    rect: [0.77, 0.2, 0.135, 0.235],
+    order: 11,
+    rig: {
+      root: [0.808, 0.43],
+      head: [0.8285, 0.27],
+      headRadius: 0.061,
+      mechanics: "daisyOrange",
+      windPos: [0.26, -1.36, 0.62],
+      bendScale: 0.45,
+      rotGain: 0.45,
+    },
+  },
+  {
+    id: "orange-lr",
+    file: "reference/layers/orange-lr.png",
+    rect: [0.815, 0.53, 0.125, 0.2],
+    order: 12,
+    rig: {
+      root: [0.858, 0.71],
+      head: [0.875, 0.5974],
+      headRadius: 0.056,
+      mechanics: "daisyOrange",
+      windPos: [0.35, -1.58, 0.5],
+      bendScale: 0.42,
+      rotGain: 0.4,
+    },
+  },
+  /* near-field blur masses: slow, soft, low-amplitude drift (spec §15) */
+  {
+    id: "fg-red-left",
+    file: "reference/layers/fg-red-left.png",
+    rect: [0.13, 0.44, 0.21, 0.24],
+    order: 20,
+    rig: {
+      root: [0.2335, 0.675],
+      head: [0.2335, 0.5633],
+      headRadius: 0.1,
+      mechanics: "foregroundMass",
+      windPos: [-0.07, -0.42, 0.5],
+      bendScale: 0.6,
+      rotGain: 0,
+    },
+  },
+  {
+    id: "fg-crimson-c",
+    file: "reference/layers/fg-crimson-c.png",
+    rect: [0.475, 0.68, 0.245, 0.27],
+    order: 21,
+    rig: {
+      root: [0.575, 0.945],
+      head: [0.5749, 0.7908],
+      headRadius: 0.12,
+      mechanics: "foregroundMass",
+      windPos: [0.01, -0.3, 0.45],
+      bendScale: 0.62,
+      rotGain: 0,
+    },
+  },
+  {
+    id: "fg-yellow-br",
+    file: "reference/layers/fg-yellow-br.png",
+    rect: [0.7, 0.72, 0.23, 0.28],
+    order: 22,
+    rig: {
+      root: [0.805, 0.995],
+      head: [0.8051, 0.8589],
+      headRadius: 0.11,
+      mechanics: "foregroundMass",
+      windPos: [0.14, -0.36, 0.45],
+      bendScale: 0.6,
+      rotGain: 0,
     },
   },
 ];

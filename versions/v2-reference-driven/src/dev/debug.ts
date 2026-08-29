@@ -12,6 +12,8 @@
 import type { App } from "../app/App";
 
 export function installDebug(app: App): void {
+  // bare mode (?bare=1) is for pixel-fidelity captures — no debug chrome
+  if (new URLSearchParams(location.search).get("bare") === "1") return;
   const img = document.createElement("img");
   img.src = `${import.meta.env.BASE_URL}reference/reference.jpg`;
   img.style.cssText =
