@@ -10,7 +10,7 @@
  * Run it after moving or renaming anything under versions/.
  */
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
-import { join, extname } from "node:path";
+import { join, extname, dirname, resolve } from "node:path";
 
 const ROOT = process.cwd();
 
@@ -51,6 +51,45 @@ let checked = 0;
 const problems = [];
 
 const FILES = targets();
+
+// Card-to-card references. Two conventions are in use and both are checked:
+//   * a true relative path (`../objects/foo.md`) — must resolve from the citing file
+//   * cluster shorthand (`v1-scene/petal-atlas.md`) or a bare name (`status.md`) —
+//     passes if any markdown file in the repo matches that path suffix
+// This is the pass that catches a reference to a card that never existed.
+const RELCITE = /`((?:\.\.?\/)*(?:[\w.-]+\/)*[\w.-]+\.md)(?::\d+(?:-\d+)?)?`/g;
+const RELLINK = /\]\(((?:\.\.?\/)*(?:[\w.-]+\/)*[\w.-]+\.md)(?:#[^)]*)?\)/g;
+/** Template placeholders — not real files by design. */
+const PLACEHOLDER = /YYYY|NNNN|<|slug|_template/i;
+
+/** Every markdown file in the repo — the corpus a shorthand reference may name. */
+const ALL_MD = (() => {
+  const out = [];
+  for (const t of [...TREES, "versions", ".claude"]) {
+    if (existsSync(join(ROOT, t))) walk(t, out);
+  }
+  return [...out.filter((f) => !f.includes("node_modules")), ...ENTRY_FILES];
+})();
+const endsWithAny = (rel) =>
+  ALL_MD.some((f) => f === rel || f.endsWith("/" + rel));
+
+for (const file of FILES) {
+  const dir = dirname(file);
+  const text = readFileSync(file, "utf8");
+  for (const m of [...text.matchAll(RELCITE), ...text.matchAll(RELLINK)]) {
+    const rel = m[1];
+    if (/^(?:versions|scripts|docs|agent-workspace|\.claude)\//.test(rel)) continue;
+    if (PLACEHOLDER.test(rel)) continue;
+    checked++;
+    if (rel.startsWith("./") || rel.startsWith("../")) {
+      if (!existsSync(resolve(ROOT, dir, rel))) {
+        problems.push(`${file}: relative link ${rel} does not resolve`);
+      }
+    } else if (!existsSync(resolve(ROOT, dir, rel)) && !endsWithAny(rel)) {
+      problems.push(`${file}: names ${rel}, which is not a file anywhere in the repo`);
+    }
+  }
+}
 
 for (const file of FILES) {
   const text = readFileSync(file, "utf8");

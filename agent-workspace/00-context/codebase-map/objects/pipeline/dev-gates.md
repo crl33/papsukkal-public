@@ -25,7 +25,7 @@ The two versions are guarded asymmetrically because only one has a checkable tar
 - **MARGIN (V2 unit).** `MOTION_MARGIN_PX` (18) must exceed `LayerMesh.MAX_BEND_IMG` (0.01) × 1242 ≈ 12.4 px. Failure = displacement can pull a layer past the reconstructed region and expose unfilled photograph.
 - **V1 timestep independence.** 300 × (1/30 s) and 1200 × (1/120 s) agree within 1e-6. Failure = someone integrated with raw frame dt; the artwork becomes display-dependent.
 - **V1 bounded deflection.** After 900 s: finite, |bend| ≤ `maxBendFrac × height × 1.35`, head nod ≤ 0.22 rad. Failure = a stiffness or damping edit that blows up hours into a session, which no short run would show.
-- **V1 e2e.** Deterministic frame has luma in 0.02–0.6 and saturation > 0.05 (not black, not white, not grey), repeated across five viewports; reduced motion keeps the scene intact with `wind.intensity < 0.2`.
+- **V1 e2e.** Deterministic frame has luma in 0.02–0.6 and saturation > 0.05 (not black, not white, not grey), then the same frame re-checked at five viewports against a looser bar (luma > 0.02, saturation > 0.04 — no upper luma bound); reduced motion keeps the scene intact with `wind.intensity < 0.2`.
 - **V1 composition validity (V1 unit).** Every placement id unique, every seed unique (a duplicate seed silently produces a twin plant), and each placement in range: `screen` both ∈ [0,1], `depth` strictly inside `cameraConfig.near`/`far`, `sizeFrac` ∈ (0, 0.3), `facing` finite. Structural, not aesthetic — it says nothing about whether the arrangement reads.
 
 Both suites run from a clean clone: V2's unit gates read tracked assets under `public/reference/layers/` (37 files). Playwright boots each dev server itself — V1 on 5183, V2 on 5193. There is no CI; these run when someone runs them (`npm run test:v1`, `test:v2`, `npm run test:e2e` inside a version).
@@ -36,7 +36,7 @@ Citations: `versions/v2-reference-driven/tests/e2e/fidelity.spec.ts:30`, `versio
 
 - **owns:** the numeric thresholds (3.5 / 0.004 / 6 / 0.35 / 0.3 / 0.995 / 18 px / 1e-6 / 1.35 / 0.22)
 - **owned-by:** `pipeline` — the offline asset build produces what half these gates inspect
-- **joins:** `objects/pipeline/asset-build.md`, `objects/v2-layers/layer-mesh.md`, `objects/v2-layers/mask-specs.md`, `objects/wind/plant-oscillator.md`
+- **joins:** `processes/prepare-assets.md`, `objects/v2-layers/layer-mesh.md`, `objects/v2-layers/mask-specs.md`, `objects/wind/plant-oscillator.md`
 - **looks-like-but-is-not:** `processes/compare-against-reference.md` — V1's *human* comparison loop, no assertions, no exit code that matters
 
 ## If you change this

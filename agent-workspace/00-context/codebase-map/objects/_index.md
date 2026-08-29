@@ -41,7 +41,7 @@ cites source; `verified` cards name a commit.
 
 | Noun | Card | Universe |
 |---|---|---|
-| Asset build — photo → plate + cutouts | `pipeline/asset-build.md` | live |
+| Asset build — photo → plate + cutouts | `../processes/prepare-assets.md` | live |
 | Dev gates — the tests that must not regress | `pipeline/dev-gates.md` | live |
 | Measurement tools — how to compare against the reference | `pipeline/measurement-tools.md` | live |
 

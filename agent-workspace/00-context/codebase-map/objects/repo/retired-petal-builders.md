@@ -53,7 +53,7 @@ editor reading `species.ts` top-to-bottom meets `addPetalRing` long before
 - Verification run at 0b26008: `grep -rn` for each of the four names across the `src`,
   `tests`, `scripts` and `docs` trees of V1 returns each definition line, plus one
   historical mention of `addIrregularPetals` / `addNaturalCenter` in
-  `versions/v1-procedural/docs/visual-reference.md` — prose that correctly describes the
+  `versions/v1-procedural/docs/visual-reference.md:149` — prose that correctly describes the
   path as retired, not a call site. (That paragraph previously described the retired path
   as current; it was corrected when this card was written.)
 - Historical proof they were live: `git show v1-procedural:src/scene/flowers/species.ts`
@@ -65,7 +65,7 @@ editor reading `species.ts` top-to-bottom meets `addPetalRing` long before
   definition-only. At 0b26008 all four are definition-only.
 - Roughly 190 lines of the file's 1166, counting the two option interfaces.
 
-Citations: `versions/v1-procedural/src/scene/flowers/species.ts:81`, `versions/v1-procedural/src/scene/flowers/species.ts:106`, `versions/v1-procedural/src/scene/flowers/species.ts:152`, `versions/v1-procedural/src/scene/flowers/species.ts:177`, `versions/v1-procedural/src/scene/flowers/species.ts:268`, `versions/v1-procedural/src/scene/flowers/species.ts:276`, `versions/v1-procedural/src/scene/flowers/species.ts:359`, `versions/v1-procedural/src/scene/flowers/species.ts:387`, `versions/v1-procedural/src/scene/flowers/species.ts:420`, `versions/v1-procedural/src/scene/flowers/species.ts:10`, `versions/v1-procedural/docs/visual-reference.md:143`
+Citations: `versions/v1-procedural/src/scene/flowers/species.ts:81`, `versions/v1-procedural/src/scene/flowers/species.ts:106`, `versions/v1-procedural/src/scene/flowers/species.ts:152`, `versions/v1-procedural/src/scene/flowers/species.ts:177`, `versions/v1-procedural/src/scene/flowers/species.ts:268`, `versions/v1-procedural/src/scene/flowers/species.ts:276`, `versions/v1-procedural/src/scene/flowers/species.ts:359`, `versions/v1-procedural/src/scene/flowers/species.ts:387`, `versions/v1-procedural/src/scene/flowers/species.ts:420`, `versions/v1-procedural/src/scene/flowers/species.ts:10`, `versions/v1-procedural/docs/visual-reference.md:149`
 
 ## Connected to
 

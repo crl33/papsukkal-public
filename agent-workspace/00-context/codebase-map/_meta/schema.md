@@ -30,7 +30,8 @@ body. A confident wrong date is worse than `stub`.
 ## Naming
 
 - Slugs: kebab-case, named for the noun as an editor would ask for it
-  (`locked-camera.md`, not `cameraConfig.md`).
+  (`locked-camera.md` — named for the concept, not after the source file
+  `cameraConfig.ts` it happens to live in).
 - `_meta/` and `_templates/` sort to the top and are about the map, not of it.
 - `_index.md` is hand-maintained *stub lines only*; card bodies are never
   copied into it.

@@ -30,7 +30,7 @@ Citations: `versions/v2-reference-driven/src/layers/LayerMesh.ts:20-25`, `:36-37
 
 - **owns:** the material instance and its `uRoot`/`uHead`/`uHeadR`/`uBend`/`uRot` uniforms (`LayerMesh.ts:27-33`).
 - **owned-by:** `v2-layers/layer-manifest.md` (every construction input) and `v2-layers/v2-app.md` (constructs it, calls `setBend` each frame).
-- **joins:** `wind/plant-oscillator.md` (consumes `output[o]`, `[o+1]`, `[o+3]`), `pipeline/asset-build.md` (the margin on the other side of the invariant), `pipeline/dev-gates.md` (the margin test).
+- **joins:** `wind/plant-oscillator.md` (consumes `output[o]`, `[o+1]`, `[o+3]`), `../../processes/prepare-assets.md` (the margin on the other side of the invariant), `pipeline/dev-gates.md` (the margin test).
 - **looks-like-but-is-not:** V1's `vegetation-material.md`. V1 clamps bend on the GPU per-vertex inside one shared shader; here the clamp is CPU-side, per layer, and exists for a decomposition reason V1 does not have.
 
 ## If you change this

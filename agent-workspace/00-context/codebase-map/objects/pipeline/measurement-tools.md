@@ -10,7 +10,7 @@ entity: versions/v1-procedural/scripts/
 # Measurement tools
 
 The dev-only instruments that make "closer to the reference" checkable. Two
-comparison tools plus three probes. None of them ship — they live in `scripts/`
+comparison tools, one capture script and three probes. None of them ship — they live in `scripts/`
 and are run by hand or in the art-direction loop.
 
 ## Why this shape

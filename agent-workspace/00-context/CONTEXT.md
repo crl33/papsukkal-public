@@ -8,14 +8,14 @@ what will bite me" without reading the source tree.
 - Reference (every run): `project.md` — what Papsukkal is, the two versions
 - Reference (every run): `name-collisions.md` — read this before anything else
 - Reference (every run): `version-separation.md` — the hard repo contract
-- Reference (when editing code): `codebase-map/_index.md` — one line per noun
+- Reference (when editing code): `codebase-map/CONTEXT.md` — one line per noun
 
 ## Process
 
 1. Read `name-collisions.md`. Most confusion in this repo is a naming
    collision, not a code problem.
 2. Read `project.md` if you do not know which version you are working in.
-3. If you are about to edit code, open `codebase-map/_index.md` and then the one
+3. If you are about to edit code, open `codebase-map/CONTEXT.md` and then the one
    card for the thing you are changing — not the whole folder.
 4. If your change would touch both versions, stop and read
    `version-separation.md`.

@@ -30,7 +30,7 @@ Citations: `versions/v2-reference-driven/src/config/layers.ts:11`, `:20-35`, `:3
 
 - **owns:** the `rect`/`order`/rig values every `LayerMesh` is constructed from (`LayerMesh.ts:17-33`); the `-bg` synthetic defs App derives from `bgFile`.
 - **owned-by:** nothing — this is a hand-authored leaf. It is mirrored by, not derived from, `tools/masks.mjs`.
-- **joins:** `wind/plant-oscillator.md` (via `mechanics` + `windPos` → `sim.addPlant`, `App.ts:94-96`), `v2-layers/mask-specs.md` (rect parity), `pipeline/asset-build.md` (produces every `file`/`bgFile`).
+- **joins:** `wind/plant-oscillator.md` (via `mechanics` + `windPos` → `sim.addPlant`, `App.ts:94-96`), `v2-layers/mask-specs.md` (rect parity), `../../processes/prepare-assets.md` (produces every `file`/`bgFile`).
 - **looks-like-but-is-not:** V1's `composition.md`. Both are hand-tuned placement tables, but V1's placements *create* plants; these only annotate photographed ones. And `windPos` looks like a shared reference into V1 — it is a copied number, nothing more.
 
 ## If you change this

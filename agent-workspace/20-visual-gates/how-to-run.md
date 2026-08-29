@@ -61,7 +61,7 @@ pixel-compared against the reference photograph.
 
 `silhouette.mjs` and `measure.mjs` need `versions/v1-procedural/dev-assets/reference.jpg`,
 which is **gitignored and deliberately not committed** — see
-`../40-decisions/0007-reference-photo-not-committed-in-v1.md`.
+`../40-decisions/0007-reference-photo-is-not-committed-in-v1.md`.
 
 On a fresh clone it will not be there, and every V1 visual gate (A–E) is unrunnable
 until it is. Get it from either:

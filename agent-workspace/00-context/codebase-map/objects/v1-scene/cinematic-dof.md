@@ -34,7 +34,7 @@ Citations: `versions/v1-procedural/src/scene/postprocessing/CinematicDofPass.ts:
 - **owns:** the near/far CoC split; the blur pyramid and its render targets; `setFocus` / `setStrength` as the only sanctioned runtime tuning surface (`:257`, `:264`).
 - **owned-by:** `createPostChain` constructs it with `quality.dofResolutionScale` and inserts it before the tone-map/grade EffectPass (`postprocessing/composer.ts:109`, `:113`).
 - **joins:** `cameraConfig.focusDistance`/`near`/`far` — the composition's focus plane and the lens agree by construction; `quality.ts` tiers (1 / 0.75 / 0.5) which scale every pyramid level.
-- **looks-like-but-is-not:** the `DepthOfFieldEffect` named in `composer.ts`'s header comment (`composer.ts:5`) — that comment is stale; the chain uses this pass. Also not the atmospheric haze in `vegetationMaterial` (`:292`): that is per-plant colour, not blur, and survives even at zero CoC.
+- **looks-like-but-is-not:** the `DepthOfFieldEffect` named in `composer.ts`'s header comment (`composer.ts:3`) — that comment is stale; the chain uses this pass. Also not the atmospheric haze in `vegetationMaterial` (`:292`): that is per-plant colour, not blur, and survives even at zero CoC.
 
 ## If you change this
 

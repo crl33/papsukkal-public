@@ -44,17 +44,17 @@ between two wind implementations is the price, paid deliberately.
   vite/playwright configs, `tests/`, `docs/`, `shots/`.
 - Root `package.json` is orchestration only (`package.json:4`): eight `npm --prefix`
   scripts, `dev:v1` / `dev:v2` / `build:*` / `test:*` / `install:*` (`package.json:5-14`).
-  Ports 5183 (V1) and 5193 (V2) — `docs/versions.md:45-48`.
+  Ports 5183 (V1) and 5193 (V2) — `docs/versions.md:53-57`.
 - **Frozen vs working tree.** The tag `v1-procedural` and the branch
   `archive/v1-procedural` both resolve to commit `15283c4` ("Critique-driven refinement")
-  and are marked immutable (`docs/versions.md:19-22`). `versions/v1-procedural/` in the
+  and are marked immutable (`docs/versions.md:24-27`). `versions/v1-procedural/` in the
   working tree is **not** frozen — an art-direction pass has since diverged it.
   `git diff --stat v1-procedural:src main:versions/v1-procedural/src` at commit 0b26008
   reports **11 files changed, 1323 insertions(+), 340 deletions(-)**, concentrated in
   `scene/flowers/species.ts` (709 changed lines) and a new
   `scene/flowers/petalTextures.ts` (445 lines).
 
-Citations: `docs/versions.md:3`, `docs/versions.md:19`, `docs/versions.md:32`, `docs/versions.md:45`, `package.json:4`, `package.json:5`, `versions/v1-procedural/package.json:15`, `versions/v2-reference-driven/package.json:16`, `versions/v2-reference-driven/src/wind/WindField.ts:1`, `versions/v2-reference-driven/src/config/layers.ts:58`, `versions/v2-reference-driven/src/utils/prng.ts:1`, `versions/v2-reference-driven/src/wind/PlantSim.ts:3`, `versions/v2-reference-driven/src/utils/noise.ts:3`
+Citations: `docs/versions.md:3`, `docs/versions.md:19`, `docs/versions.md:33`, `docs/versions.md:45`, `package.json:4`, `package.json:5`, `versions/v1-procedural/package.json:15`, `versions/v2-reference-driven/package.json:16`, `versions/v2-reference-driven/src/wind/WindField.ts:1`, `versions/v2-reference-driven/src/config/layers.ts:58`, `versions/v2-reference-driven/src/utils/prng.ts:1`, `versions/v2-reference-driven/src/wind/PlantSim.ts:3`, `versions/v2-reference-driven/src/utils/noise.ts:3`
 
 ## Connected to
 
