@@ -1,7 +1,8 @@
 /**
- * Keep the agent workspace honest: every repo path cited inside
- * agent-workspace/ must actually exist, and every `path:line` citation must
- * point inside the file it names.
+ * Keep the routing honest: every repo path cited in the agent workspace, in the
+ * root entry files, or in docs/ must actually exist, and every `path:line`
+ * citation must point inside the file it names. Both backtick citations and
+ * markdown links are checked.
  *
  *   node scripts/check-workspace-links.mjs
  *
@@ -12,7 +13,11 @@ import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
 import { join, extname } from "node:path";
 
 const ROOT = process.cwd();
-const WORKSPACE = "agent-workspace";
+
+/** Directories walked in full. */
+const TREES = ["agent-workspace", "docs"];
+/** Individual files that are entry points — a dead link here costs the most. */
+const ENTRY_FILES = ["CLAUDE.md", "AGENTS.md", "README.md"];
 
 /** Paths that legitimately do not exist in a fresh clone. */
 const ALLOWED_MISSING = [
@@ -28,15 +33,28 @@ function walk(dir, out = []) {
   return out;
 }
 
-// `versions/...`, `scripts/...`, `docs/...`, optionally :line or :a-b
-const CITE = /`((?:versions|scripts|docs|agent-workspace|\.claude)\/[^`\s]+?)(?::(\d+)(?:-\d+)?)?`/g;
+const PREFIX = "(?:versions|scripts|docs|agent-workspace|\\.claude)";
+// `versions/...`, `scripts/...`, optionally :line or :a-b
+const CITE = new RegExp("`(" + PREFIX + "/[^`\\s]+?)(?::(\\d+)(?:-\\d+)?)?`", "g");
+// [text](versions/...) — markdown links, as used by README.md
+const LINK = new RegExp("\\]\\((" + PREFIX + "/[^)\\s#]+)\\)", "g");
+
+/** Every markdown file this guard is responsible for. */
+function targets() {
+  const out = [];
+  for (const t of TREES) if (existsSync(join(ROOT, t))) walk(t, out);
+  for (const f of ENTRY_FILES) if (existsSync(join(ROOT, f))) out.push(f);
+  return out;
+}
 
 let checked = 0;
 const problems = [];
 
-for (const file of walk(WORKSPACE)) {
+const FILES = targets();
+
+for (const file of FILES) {
   const text = readFileSync(file, "utf8");
-  for (const m of text.matchAll(CITE)) {
+  for (const m of [...text.matchAll(CITE), ...text.matchAll(LINK)]) {
     const [, path, line] = m;
     if (ALLOWED_MISSING.includes(path)) continue;
     checked++;
@@ -54,7 +72,7 @@ for (const file of walk(WORKSPACE)) {
   }
 }
 
-console.log(`checked ${checked} citations across ${walk(WORKSPACE).length} files`);
+console.log(`checked ${checked} citations across ${FILES.length} files`);
 if (problems.length) {
   for (const p of problems) console.error("  " + p);
   console.error(`${problems.length} broken citation(s)`);

@@ -59,5 +59,22 @@ pixel-compared against the reference photograph.
 
 ## Requirement
 
-`silhouette.mjs` and `measure.mjs` need `dev-assets/reference.jpg` (gitignored).
-Copy the reference photograph there before running them.
+`silhouette.mjs` and `measure.mjs` need `versions/v1-procedural/dev-assets/reference.jpg`,
+which is **gitignored and deliberately not committed** — see
+`../40-decisions/0007-reference-photo-not-committed-in-v1.md`.
+
+On a fresh clone it will not be there, and every V1 visual gate (A–E) is unrunnable
+until it is. Get it from either:
+
+- **`versions/v2-reference-driven/public/reference/reference.jpg`** — committed in this
+  same repo, and the identical image. This is the fast path:
+
+  ```bash
+  mkdir -p versions/v1-procedural/dev-assets
+  cp versions/v2-reference-driven/public/reference/reference.jpg \
+     versions/v1-procedural/dev-assets/reference.jpg
+  ```
+
+- or the project owner, if V2 is ever removed.
+
+The scripts fail with this instruction if the file is missing.

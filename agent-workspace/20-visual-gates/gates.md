@@ -69,15 +69,22 @@ animation — a V2 that does not reproduce the photo at rest is not V2.
 - **ghost** — the plate must hold no flower remnant where a flower was lifted
   (chroma collapse *and* structureless gradient energy)
 - **coverage** — ≥99.5% of strong flower pixels are near-opaque in the tight cutout
-- **margin** — the plate's reconstruction margin exceeds the runtime displacement
-  clamp, so a sway can only ever reveal reconstructed background
+- **margin** — the configured plate margin constant (`MOTION_MARGIN_PX` = 18 px)
+  exceeds the runtime displacement clamp (`MAX_BEND_IMG` × 1242 = 12.4 px). Note what
+  the test checks: `tests/unit/plate.test.ts` compares those two **constants**, not
+  pixels. The reconstruction itself is feathered (blur σ = margin/2, then a 2.2×
+  remap), fully replaced to ~1 px outside the silhouette and falling to zero by
+  17–23 px. So what actually guarantees a sway stays over reconstructed or true
+  background is the generous silhouette; the constant is the cheap invariant that
+  stops someone raising the clamp without raising the margin.
 
 Proves: a moving flower cannot leave a copy of itself behind.
 
 ## H — Motion stability
 
 `node scripts/motion-probe.mjs --times 6,9,600`. At t=600 s: no NaN, deflection
-bounded, no drift. Plus `npm test` for timestep independence (30/60/120 fps
-produce identical trajectories).
+bounded, no drift. Plus `npm test` for timestep independence: a 10 s run at 30 fps
+(300 steps) and at 120 fps (1200 steps) land within 1e-6 of each other. It compares
+final state, not whole trajectories, and 60 fps is not separately run.
 
 Proves: the breeze is stable and frame-rate independent.

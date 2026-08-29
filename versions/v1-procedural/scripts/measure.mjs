@@ -1,6 +1,20 @@
 /** DEV metric: how much bright teal "linework" sits in the midground band,
  * and overall band statistics — reference vs render (Gate E, numerically). */
 import sharp from "sharp";
+import { existsSync } from "node:fs";
+const REF = "dev-assets/reference.jpg";
+const MISSING_REF = `missing ${REF} (gitignored by decision 0007, and this script must run
+from versions/v1-procedural/).
+
+It is byte-identical to the copy committed under V2, so:
+
+  mkdir -p versions/v1-procedural/dev-assets
+  cp versions/v2-reference-driven/public/reference/reference.jpg \\
+     versions/v1-procedural/dev-assets/reference.jpg
+
+See agent-workspace/20-visual-gates/how-to-run.md.`;
+
+if (!existsSync(REF)) throw new Error(MISSING_REF);
 const W = 1242, H = 822;
 const BANDS = {
   mid: { x0: 40, x1: 700, y0: 300, y1: 640 },
@@ -32,7 +46,7 @@ async function stats(file, band) {
   };
 }
 for (const [name, band] of Object.entries(BANDS)) {
-  const r = await stats("dev-assets/reference.jpg", band);
+  const r = await stats(REF, band);
   const m = await stats("shots/ref-aspect.png", band);
   console.log(name.padEnd(4), "ref", JSON.stringify(r), "\n     mine", JSON.stringify(m));
 }

@@ -20,7 +20,7 @@ Trap already hit twice: brightening the filler also brightens the **low** band,
 which currently matches and must not regress. The two bands are coupled through
 the near-field blur, so check all three bands after every change.
 
-Verify: `node scripts/measure.mjs` — mid mean toward 54.5 with low staying ≈27
+Verify (from `versions/v1-procedural/`): `node scripts/measure.mjs` — mid mean toward 54.5 with low staying ≈27
 and teal near 13%, plus Gate A so it does not become a flat wash.
 
 ## 2 — Highlights are compressed (p95 ~88 vs 110, max ~188 vs 247)
@@ -31,7 +31,7 @@ and white daisies carry real highlight energy.
 Where: key light in `vegetationMaterial.ts`, the ACES + grade chain in
 `composer.ts`.
 
-Verify: `measure.mjs` p95 and max in the mid band, without lifting the p50.
+Verify (from `versions/v1-procedural/`): `node scripts/measure.mjs` p95 and max in the mid band, without lifting the p50.
 
 ## 3 — Botanical density between the sharp subjects
 

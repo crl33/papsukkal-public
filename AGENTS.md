@@ -26,7 +26,7 @@ way — deliberately.
 |---|---|
 | anything visual, or "make it closer to the reference" | `agent-workspace/CLAUDE.md` |
 | pick up where the last agent stopped | `agent-workspace/90-current-state/` |
-| change specific code | `agent-workspace/00-context/codebase-map/_index.md` |
+| change specific code | `agent-workspace/00-context/codebase-map/` |
 | judge whether a change helped | `agent-workspace/20-visual-gates/` |
 | understand why something is built oddly | `agent-workspace/40-decisions/` |
 | run, build or test | `docs/versions.md` |
@@ -37,13 +37,18 @@ way — deliberately.
    provenance header. See `agent-workspace/00-context/version-separation.md`.
 2. **Measure visual claims.** "It looks better" is not a result —
    `agent-workspace/20-visual-gates/` exists so claims are checkable.
-3. **Hero screen placements are frozen**; orientation and morphology are open.
-4. **The breeze is finished.** Do not redesign it.
+3. **Hero screen placements are frozen.** Orientation, colour and morphology are
+   open; screen position is not — unless you were explicitly told otherwise.
+4. **The breeze is good. Do not redesign it.** It is the one part nobody has
+   complained about. See `agent-workspace/40-decisions/0003-copy-wind-do-not-share.md`.
 5. **If a workspace file and the code disagree, the code wins** — fix the file
-   in the same commit.
+   in the same commit. If two workspace files disagree, the one deeper in
+   `agent-workspace/` wins over this entry file; fix this file.
 
 ## Generated files
 
-`AGENTS.md` and `agent-workspace/AGENTS.md` are byte-identical twins of the
-`CLAUDE.md` beside them, produced by `node scripts/sync-twins.mjs`. Never edit a
-twin; `--check` fails CI if one is stale.
+`AGENTS.md` and `agent-workspace/AGENTS.md` are generated copies of the
+`CLAUDE.md` beside them, with a `GENERATED` banner line prepended — so they are
+identical apart from that first line, and `cmp` will report a difference.
+Verify with `node scripts/sync-twins.mjs --check`, never with `cmp`. Never edit
+a twin; `--check` fails CI if one is stale.

@@ -19,6 +19,16 @@ import { mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const REF = "dev-assets/reference.jpg";
+const MISSING_REF = `missing ${REF} (gitignored by decision 0007, and this script must run
+from versions/v1-procedural/).
+
+It is byte-identical to the copy committed under V2, so:
+
+  mkdir -p versions/v1-procedural/dev-assets
+  cp versions/v2-reference-driven/public/reference/reference.jpg \\
+     versions/v1-procedural/dev-assets/reference.jpg
+
+See agent-workspace/20-visual-gates/how-to-run.md.`;
 const RENDER = "shots/ref-aspect.png";
 
 /** Regions in reference pixels (1242×822): [x, y, w, h] */
@@ -39,7 +49,7 @@ if (name === "--list") {
 }
 const rect = REGIONS[name];
 if (!rect) throw new Error(`unknown region: ${name} (try --list)`);
-if (!existsSync(REF)) throw new Error(`missing ${REF} — copy the reference photo there (gitignored)`);
+if (!existsSync(REF)) throw new Error(MISSING_REF);
 
 const outDir = join("shots/silhouette", name);
 mkdirSync(outDir, { recursive: true });

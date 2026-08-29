@@ -50,11 +50,12 @@ editor reading `species.ts` top-to-bottom meets `addPetalRing` long before
   `species.ts:10`. The sprig pair's replacement is not atlas-based at all: the local
   `blossom` helper inside `buildMicroSprig` (`species.ts:719-749`) builds a 5-petal star
   from raw grids plus one `addBlob` — a few pixels across, built in the thousands.
-- Verification run at 0b26008: `grep -rn` for each of the four names across
-  the `src`, `tests`, `scripts` and `docs` trees of V1 returns only the definition line.
-  (A stale prose mention of `addIrregularPetals` in
-  `versions/v1-procedural/docs/visual-reference.md` was corrected when this card was
-  written; that section now describes the atlas path.)
+- Verification run at 0b26008: `grep -rn` for each of the four names across the `src`,
+  `tests`, `scripts` and `docs` trees of V1 returns each definition line, plus one
+  historical mention of `addIrregularPetals` / `addNaturalCenter` in
+  `versions/v1-procedural/docs/visual-reference.md` — prose that correctly describes the
+  path as retired, not a call site. (That paragraph previously described the retired path
+  as current; it was corrected when this card was written.)
 - Historical proof they were live: `git show v1-procedural:src/scene/flowers/species.ts`
   shows all four called (`addIrregularPetals` at 371/387/438/516, `addNaturalCenter` at
   402, `addCenterDome` at 468/536/626/656/902, `addPetalRing` at 611/643/889).

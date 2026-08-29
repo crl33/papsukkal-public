@@ -14,6 +14,7 @@ other file has to re-explain them.
 | "the plate" | V2's inpainted background: `public/reference/layers/plate.jpg` |
 | "cutout" vs "patch" | V2: the **cutout** moves (the flower). The **patch** never moves (the true background around it). Confusing these is how ghosting gets reintroduced. |
 | "frozen V1" | the git tag `v1-procedural` and branch `archive/v1-procedural`. The working tree at `versions/v1-procedural/` is **not** frozen and has diverged. |
+| "the magenta", "the hero's pink" | the hero's colour is the `cosmosMagenta` **ramp** (`petalTextures.ts:157`) — `#3d0824`→`#e654ab`. It is **not** `palette.magenta`/`magentaHi`, which tint only the mid-flower scatter pool (`MeadowScene.ts:332`), and **not** `palette.magentaDeep`, which has zero consumers. |
 | "the gates" | two unrelated things: **visual** gates (`../20-visual-gates/`) and **test** gates (`npm test` / `test:e2e`). Ask which. |
 
 ## Universes
@@ -24,6 +25,8 @@ Some code is present but not on the main path. Where a card says so, believe it:
 - **leftover** — still present, superseded. Touch only if that path is in scope.
 - **ghost** — named but wired to nothing. Do not implement against these.
 
+Currently `ghost`: `palette.magentaDeep` (`palette.ts:25`) — defined, never read.
+
 Currently `leftover`: four petal helpers in V1's `species.ts`
 (`addPetalRing`, `addIrregularPetals`, `addNaturalCenter`, `addCenterDome`) —
-zero references anywhere. See `codebase-map/repo/retired-petal-builders.md`.
+zero references anywhere. See `codebase-map/objects/repo/retired-petal-builders.md`.

@@ -7,8 +7,10 @@ commit: 0b26008
 
 ## V1 — procedural (the active surface)
 
-Working, 60 fps, ~690 simulated plants. All gates green: 64 unit tests, 8 e2e,
-production build clean, sim stable and bounded at t=600 s.
+Working, 60 fps, ~690 simulated plants. All **test** gates green: 64 unit tests,
+8 e2e, production build clean, sim stable and bounded at t=600 s. The **visual**
+gates are not all green — Gate D (colour-mass distribution) is still open on the
+mid band, below.
 
 Recent art-direction pass delivered: oblique cupped hero flowers with a real
 petal material (underside, transmission, specular); elongated oblique foreground
@@ -16,13 +18,18 @@ masses; background reduced from stage-light blobs to discrete botanical bokeh;
 the "wire forest" midground rebuilt as botanical tangle; red sprays rebuilt as
 branching umbels.
 
-Band luminance vs reference (`node scripts/measure.mjs`):
+Band luminance vs reference — run from `versions/v1-procedural/`:
+
+```bash
+node scripts/measure.mjs
+```
+
 
 | Band | Reference | V1 now | Verdict |
 |---|---|---|---|
 | low | 26.8 | ~28 | matched |
 | top | 71.6 | ~65 | close |
-| mid | 54.5 | ~38–46 | **the open gap** |
+| mid | 54.5 | 37.8 | **the open gap** |
 
 All overlay typography has been removed — the page is artwork only.
 
@@ -30,7 +37,10 @@ All overlay typography has been removed — the page is artwork only.
 
 Working and stable, not the active surface. Zero-motion fidelity ≈2.17 mean
 |diff| against the photograph (hard gate: <3.5). 13 moving layers, ghost /
-coverage / margin gates passing, forced-pose probe clean in both directions.
+coverage / margin gates passing. The forced-pose probe
+(`versions/v2-reference-driven/scripts/ghost-probe.mjs`) asserts nothing and always exits 0 — it only writes
+`shots/posepos.png` / `poseneg.png`; both were inspected by hand on 2026-08-29
+and were clean. That one is a human judgement, not a gate.
 
 ## The frozen archive
 

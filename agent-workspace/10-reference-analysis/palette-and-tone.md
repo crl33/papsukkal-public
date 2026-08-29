@@ -6,7 +6,7 @@
 |---|---|
 | Foliage sage-teal | `#2a5f55`, `#3d7d6c`, light `#5aa88d` |
 | Shadow navy | `#0a1f2e`, near-black `#06121f` |
-| Magenta petals | `#bc1a80` core, `#e654ab` highlight, `#3d0824` throat |
+| Magenta petals | `#bc1a80` core, `#e654ab` highlight, `#3d0824` throat — transcribed into the `cosmosMagenta` ramp in `versions/v1-procedural/src/scene/flowers/petalTextures.ts:157`. Not to be confused with `palette.magenta` `#c2258f`, which is an art-directed scatter tint, not a measured anchor (see `../00-context/name-collisions.md`). |
 | Violet | `#7a3bd4`, `#9b59e8` |
 | Red | `#d81f2a`, crimson `#b3121f`, maroon `#5c0e14` |
 | Cobalt | `#2244dd`, `#3a5bff` |
