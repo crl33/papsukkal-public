@@ -51,22 +51,35 @@ const FRAG = /* glsl */ `
 
   void main() {
     vec2 p = vUv * 2.0 - 1.0;
+    float kind = vKindSeed.x;
     float seed = vKindSeed.y;
     float ang = atan(p.y, p.x);
-    // irregular petal-ish silhouette
     float wobble = 0.14 * sin(ang * 3.0 + seed * 7.1) + 0.09 * sin(ang * 5.0 + seed * 3.3);
     float r = length(p) * (1.0 + wobble);
-    if (r > 1.0) discard;
 
     vec3 col;
-    if (vKindSeed.x > 0.5) {
+    if (kind > 2.5) {
+      // bright azure disc — a sky gap glowing between distant flowers
+      if (r > 1.0) discard;
+      col = vTint * 1.25 * (1.0 - 0.3 * r * r);
+    } else if (kind > 1.5) {
+      // flower-shaped silhouette: the viewer should read "flower", not "dot"
+      float petals = 5.0 + floor(mod(seed * 2.7, 3.0));
+      float mask = 0.52 + 0.48 * pow(abs(cos(ang * petals * 0.5 + seed * 1.9)), 1.4);
+      if (r > mask) discard;
+      // luminous mid-petal zone, slightly darker heart and rim
+      col = vTint * (0.55 + 0.65 * smoothstep(0.05, 0.42, r)) * (1.0 - 0.25 * smoothstep(0.75, 1.0, r / mask));
+      col = mix(col, vTint * 0.25, smoothstep(0.16, 0.0, r));
+    } else if (kind > 0.5) {
       // defocused poppy: dark heart, hot ring, darker rim
+      if (r > 1.0) discard;
       vec3 heart = vTint * 0.12;
       vec3 ring = vTint * 1.6;
       col = mix(heart, ring, smoothstep(0.18, 0.5, r));
       col *= 1.0 - 0.3 * smoothstep(0.78, 1.0, r);
     } else {
       // soft blob, brighter core
+      if (r > 1.0) discard;
       col = vTint * (1.05 - 0.35 * r * r);
     }
     // slight atmospheric mix keyed to nothing fancy — DOF does the rest

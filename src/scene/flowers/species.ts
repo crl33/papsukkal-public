@@ -137,6 +137,120 @@ function smoothstep01(x: number): number {
   return t * t * (3 - 2 * t);
 }
 
+export interface IrregularPetalOptions {
+  count: number;
+  length: number;
+  width: number;
+  /** Mean sweep-back angle (radians); each petal deviates strongly. */
+  cone: number;
+  cup: number;
+  arch: number;
+  baseRadius: number;
+  colorFn: (u: number, va: number, petalIdx: number) => Color;
+  nu?: number;
+  nv?: number;
+  flutter?: number;
+  /** How wild the irregularity is, 0..1. Real flowers ≈ 0.6–1. */
+  wildness?: number;
+  /** Per-petal tip curl range (radians of tip curvature, ± ). */
+  curl?: number;
+}
+
+/**
+ * A ring of NATURAL petals: uneven lengths, irregular angular spacing,
+ * per-petal droop/lift (depth staggering), twist, tip curl, wavy edges and
+ * ragged tips. This is what separates "flower" from "mathematical rosette" —
+ * the reference's blossoms have no two petals alike.
+ */
+export function addIrregularPetals(b: GeomBuilder, rng: Rng, o: IrregularPetalOptions): void {
+  const nu = o.nu ?? 8;
+  const nv = o.nv ?? 5;
+  const wild = o.wildness ?? 0.7;
+  const curlAmt = o.curl ?? 0.5;
+
+  // irregular angular layout: jittered slots, some petals crowd, gaps appear
+  const angles: number[] = [];
+  for (let i = 0; i < o.count; i++) {
+    angles.push((i / o.count) * Math.PI * 2 + rng.gauss() * (1.4 / o.count) * wild);
+  }
+
+  for (let i = 0; i < o.count; i++) {
+    const theta = angles[i];
+    const len = o.length * (1 + rng.gauss() * 0.13 * wild);
+    const width = o.width * (1 + rng.gauss() * 0.12 * wild);
+    const cone = o.cone + rng.gauss() * 0.24 * wild; // droop/lift stagger
+    const roll = rng.gauss() * 0.22 * wild; // twist around petal axis
+    const curl = rng.gauss() * curlAmt * wild; // tip curls up or down
+    const lift = rng.gauss() * 0.012 * wild * len; // small depth offset
+    const baseR = o.baseRadius * (1 + rng.gauss() * 0.18 * wild);
+    const phase = rng.next() * Math.PI * 2;
+    const notchPhase = rng.next() * 10;
+    const wavePhase = rng.next() * 10;
+    const skew = rng.gauss() * 0.1 * wild; // asymmetric blade
+
+    _m.makeRotationFromEuler(new Euler(0, -theta, roll, "YXZ"));
+    b.section(_m, () => {
+      b.grid(nu, nv, (u, v, pos) => {
+        const va = v * 2 - 1;
+        // width profile with wavy edge + ragged tip
+        let half = width * 0.5 * (0.2 + 0.8 * smoothstep01(u / 0.6));
+        if (u > 0.8) half *= Math.sqrt(Math.max(0.04, 1 - ((u - 0.8) / 0.2) ** 2 * 0.6));
+        half *= 1 + 0.07 * wild * Math.sin(u * 6.3 + wavePhase);
+        const notch = 1 - 0.09 * wild * Math.max(0, (u - 0.7) / 0.3) * (0.5 + 0.5 * Math.sin(va * 6 + notchPhase));
+        const x = baseR + u * len * notch;
+        const y =
+          -Math.sin(cone) * u * len +
+          o.arch * Math.sin(u * Math.PI) * len * 0.2 +
+          curl * u * u * len * 0.55 + // tip curl
+          o.cup * (1 - va * va) * width * 0.15 +
+          lift;
+        pos.set(x, y, va * half + skew * u * len);
+        return {
+          color: o.colorFn(u, va, i),
+          data: { s: 1, head: 1, flutter: (o.flutter ?? 0.45) * u * u, phase },
+        };
+      });
+    });
+  }
+}
+
+/**
+ * A natural flower center: dark bulging cone with a physical stamen ring —
+ * small warm blobs seated on the rim, so a tilted head shows the crescent of
+ * stamens the reference's cosmos centers have.
+ */
+export function addNaturalCenter(
+  b: GeomBuilder,
+  rng: Rng,
+  radius: number,
+  height: number,
+  coneColor: Color,
+  stamenA: Color,
+  stamenB: Color,
+): void {
+  // bulging cone
+  b.grid(6, 12, (u, v, pos, normal) => {
+    const r = Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.5) * radius;
+    const ang = v * Math.PI * 2;
+    const y = (1 - u * u) * height;
+    pos.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
+    const n = new Vector3(Math.cos(ang) * u, 1.1 * (1 - u * 0.6), Math.sin(ang) * u).normalize();
+    normal.copy(n);
+    const col = coneColor.clone().multiplyScalar(0.75 + 0.5 * (1 - u)); // darker rim
+    return { color: col, data: { s: 1, head: 1, flutter: 0.04 * u, phase: ang } };
+  });
+  // stamen blobs around the top rim + a few inner
+  const n = rng.int(9, 14);
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2 + rng.range(-0.2, 0.2);
+    const rr = radius * rng.range(0.55, 0.85);
+    const y = height * rng.range(0.55, 0.95);
+    const sr = radius * rng.range(0.1, 0.16);
+    const col = varied(stamenA.clone().lerp(stamenB, rng.next()), rng, 0.05);
+    addBlob(b, new Vector3(Math.cos(ang) * rr, y, Math.sin(ang) * rr), sr, 0.8, col, 1, 0.05, ang, 1);
+  }
+}
+
 /** Squashed dome for flower centers, facing +Y, base at origin. */
 export function addCenterDome(
   b: GeomBuilder,
@@ -167,6 +281,7 @@ export function addBlob(
   s: number,
   flutter: number,
   phase: number,
+  headFlag = 0,
 ): void {
   b.grid(6, 8, (u, v, pos, normal) => {
     const phi = u * Math.PI;
@@ -174,7 +289,7 @@ export function addBlob(
     const n = new Vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi) * squash, Math.sin(phi) * Math.sin(theta));
     normal.copy(n).normalize();
     pos.set(center.x + n.x * radius, center.y + n.y * radius, center.z + n.z * radius);
-    return { color, data: { s, head: 0, flutter, phase } };
+    return { color, data: { s, head: headFlag, flutter, phase } };
   });
 }
 
@@ -224,48 +339,75 @@ export function buildCosmos(
   diameter: number,
   facing: [number, number, number] = [14, 0, 0],
   detail = 1,
+  variant: "magenta" | "violet" = "magenta",
 ): PlantBuild {
   const rng = createRng(seed);
   const b = new GeomBuilder();
   addStem(b, headY, 0.0014 + diameter * 0.006, rng, {});
-  const cMid = srgb(palette.magenta);
-  const cHi = srgb(palette.magentaHi);
-  const cDeep = srgb(palette.magentaDeep);
+
+  // magenta hero vs the deeper purple second bloom of the reference
+  const cMid = variant === "violet" ? srgb("#a637a0") : srgb(palette.magenta);
+  const cHi = variant === "violet" ? srgb("#bd55d0") : srgb(palette.magentaHi);
+  const cDeep = variant === "violet" ? srgb("#5c1670") : srgb(palette.magentaDeep);
+
+  const colorFn = (layerDim: number) => (u: number, va: number, petalIdx: number) => {
+    const c = cDeep
+      .clone()
+      .lerp(cMid, smoothstep01(u * 2.0))
+      .lerp(cHi, smoothstep01((u - 0.42) * 1.7) * 0.7);
+    // striations — veins running the petal's length
+    const stripe = 0.5 + 0.5 * Math.sin(va * 11.5 + petalIdx);
+    c.multiplyScalar(1 - 0.2 * stripe * (1 - u * 0.3));
+    // strong per-petal light variation + darker inner region
+    const petalLum = 0.6 + 0.38 * (0.5 + 0.5 * Math.sin(petalIdx * 12.9898 + seed));
+    c.multiplyScalar(petalLum * layerDim);
+    c.multiplyScalar(0.66 + 0.34 * smoothstep01(u * 3.2)); // dark throat
+    c.multiplyScalar(0.9 + 0.1 * Math.abs(va));
+    return c;
+  };
 
   headSection(b, headY, facing, () => {
-    addPetalRing(b, rng, {
+    // back layer: fewer, longer, droopier, in shadow
+    addIrregularPetals(b, rng, {
+      count: 6,
+      length: diameter * 0.44,
+      width: diameter * 0.27,
+      cone: 0.42,
+      cup: 0.5,
+      arch: 0.7,
+      baseRadius: diameter * 0.07,
+      nu: Math.round(8 * detail) + 2,
+      nv: Math.round(5 * detail) + 1,
+      wildness: 0.85,
+      curl: 0.35,
+      flutter: 0.45,
+      colorFn: colorFn(0.72),
+    });
+    // front layer: the readable petals
+    addIrregularPetals(b, rng, {
       count: 8,
-      length: diameter * 0.5 - diameter * 0.1,
-      width: diameter * 0.285,
-      cone: 0.28,
+      length: diameter * 0.395,
+      width: diameter * 0.275,
+      cone: 0.22,
       cup: 0.55,
-      arch: 0.8,
-      baseRadius: diameter * 0.075,
+      arch: 0.85,
+      baseRadius: diameter * 0.065,
       nu: Math.round(9 * detail) + 2,
       nv: Math.round(6 * detail) + 1,
-      tipNotch: 0.16,
+      wildness: 0.75,
+      curl: 0.5,
       flutter: 0.45,
-      colorFn: (u, va, petalIdx) => {
-        const c = cDeep.clone().lerp(cMid, smoothstep01(u * 2.2)).lerp(cHi, smoothstep01((u - 0.4) * 1.7) * 0.85);
-        // radial striations — subtle veins running the petal's length
-        const stripe = 0.5 + 0.5 * Math.sin(va * 11.5);
-        c.multiplyScalar(1 - 0.17 * stripe * (1 - u * 0.35));
-        // per-petal light variation: overlapping petals catch light unevenly
-        const petalLum = 0.84 + 0.28 * (0.5 + 0.5 * Math.sin(petalIdx * 12.9898 + 4.1));
-        c.multiplyScalar(petalLum);
-        // soft central crease
-        c.multiplyScalar(0.9 + 0.1 * Math.abs(va));
-        return c;
-      },
+      colorFn: colorFn(1),
     });
-    const navy = srgb("#2e3f78");
-    const stamen = srgb(palette.daisyCenter);
-    const stamenHot = srgb("#f59a1e");
-    addCenterDome(b, diameter * 0.115, diameter * 0.05, (r, ang) => {
-      if (r < 0.55) return varied(navy, rng, 0.03);
-      const dash = 0.5 + 0.5 * Math.sin(ang * 19 + r * 20);
-      return stamen.clone().lerp(stamenHot, dash).multiplyScalar(0.85 + 0.5 * (r - 0.55));
-    });
+    addNaturalCenter(
+      b,
+      rng,
+      diameter * 0.095,
+      diameter * 0.07,
+      srgb("#232c5e"),
+      srgb(palette.daisyCenter),
+      srgb("#f59a1e"),
+    );
   });
 
   // feathery leaves low on the stem
@@ -293,7 +435,7 @@ export function buildDaisy(
   const petalCount = variant === "white" ? rng.int(15, 19) : rng.int(11, 13);
 
   headSection(b, headY, facing, () => {
-    addPetalRing(b, rng, {
+    addIrregularPetals(b, rng, {
       count: petalCount,
       length: diameter * 0.40,
       width: diameter * (variant === "white" ? 0.10 : 0.17),
@@ -301,9 +443,10 @@ export function buildDaisy(
       cup: 0.35,
       arch: 0.5,
       baseRadius: diameter * 0.08,
-      nu: 4,
+      nu: 5,
       nv: 2,
-      tipNotch: 0.03,
+      wildness: 0.5,
+      curl: 0.3,
       flutter: 0.5,
       colorFn: (u, _va, petalIdx) => {
         const petalLum = 0.88 + 0.2 * (0.5 + 0.5 * Math.sin(petalIdx * 7.31 + 1.7));
@@ -370,7 +513,7 @@ export function buildMaroonBloom(
   headSection(b, headY, facing, () => {
     for (let layer = 0; layer < 3; layer++) {
       const lf = layer / 2;
-      addPetalRing(b, rng, {
+      addIrregularPetals(b, rng, {
         count: 9 + layer,
         length: diameter * 0.5 * (1 - lf * 0.45),
         width: diameter * 0.24 * (1 - lf * 0.25),
@@ -380,9 +523,14 @@ export function buildMaroonBloom(
         baseRadius: diameter * 0.04,
         nu: 4,
         nv: 2,
-        tipNotch: 0.12,
+        wildness: 0.9,
+        curl: 0.45,
         flutter: 0.3,
-        colorFn: (u) => maroon.clone().lerp(red, smoothstep01(u * 1.3) * 0.4).multiplyScalar(0.5 + 0.45 * u),
+        colorFn: (u, _va, petalIdx) =>
+          maroon
+            .clone()
+            .lerp(red, smoothstep01(u * 1.3) * 0.5)
+            .multiplyScalar((0.5 + 0.45 * u) * (0.8 + 0.35 * (0.5 + 0.5 * Math.sin(petalIdx * 7.7)))),
       });
     }
     addCenterDome(b, diameter * 0.08, diameter * 0.05, () => srgb("#2e070b"));
@@ -404,13 +552,13 @@ export function buildMicroSprig(
 
   const colors: Record<string, [Color, Color]> = {
     red: [srgb(palette.red), srgb(palette.crimson)],
-    blue: [srgb(palette.cobalt).multiplyScalar(0.6), srgb(palette.cobaltHi).multiplyScalar(0.6)],
+    blue: [srgb(palette.cobalt).multiplyScalar(0.85), srgb(palette.cobaltHi).multiplyScalar(0.85)],
     violet: [srgb(palette.violet).multiplyScalar(0.85), srgb(palette.violetHi).multiplyScalar(0.85)],
   };
   const [cA, cB] = colors[kind];
   const stemCol = srgb(palette.stemCyan);
 
-  const count = kind === "red" ? rng.int(11, 16) : rng.int(7, 11);
+  const count = kind === "red" ? rng.int(14, 20) : rng.int(7, 11);
   for (let i = 0; i < count; i++) {
     const ang = rng.range(0, Math.PI * 2);
     const rad = spread * Math.sqrt(rng.next()) * 0.5;
@@ -431,11 +579,27 @@ export function buildMicroSprig(
       return { color: stemCol.clone().multiplyScalar(0.9), data: { s: Math.min(1, yy / topY), head: 0, flutter: 0.25 * u, phase } };
     });
 
-    const bloomR = spread * rng.range(0.07, 0.115);
+    const bloomR = spread * rng.range(0.052, 0.085);
     const col = varied(cA.clone().lerp(cB, rng.next()), rng, 0.05);
-    if (kind === "red") col.multiplyScalar(1.35);
+    if (kind === "red") col.multiplyScalar(1.25);
     if (kind === "red") {
-      addBlob(b, new Vector3(px, y, pz), bloomR, 0.85, col, sAvg, 0.5, phase);
+      // tiny pom cluster: 3-5 lobes so the blossom reads floral, not berry
+      const lobes = rng.int(3, 5);
+      for (let li = 0; li < lobes; li++) {
+        const la = (li / lobes) * Math.PI * 2 + rng.range(-0.5, 0.5);
+        const lr = bloomR * rng.range(0.3, 0.55);
+        const lc = varied(col, rng, 0.06).multiplyScalar(rng.range(0.85, 1.15));
+        addBlob(
+          b,
+          new Vector3(px + Math.cos(la) * lr, y + rng.range(-0.3, 0.5) * lr, pz + Math.sin(la) * lr),
+          bloomR * rng.range(0.38, 0.52),
+          0.9,
+          lc,
+          sAvg,
+          0.5,
+          phase + li,
+        );
+      }
     } else {
       // tiny open rosette: 5 rounded petals
       _m.makeRotationFromEuler(new Euler(rng.range(0.7, 1.35), rng.range(-0.6, 0.6), 0, "YXZ")).setPosition(px, y, pz);
@@ -444,8 +608,8 @@ export function buildMicroSprig(
       b.section(_m, () => {
         addPetalRing(b, rng, {
           count: 5,
-          length: bloomR * 1.5,
-          width: bloomR * 1.15,
+          length: bloomR * 1.8,
+          width: bloomR * 1.4,
           cone: 0.25,
           cup: 0.4,
           arch: 0.3,
@@ -490,6 +654,186 @@ export function buildMidFlowerHead(seed: number): PlantBuild {
     addCenterDome(b, d * 0.1, d * 0.06, () => new Color(0.32, 0.28, 0.3));
   });
   return { builder: b, headPivotY: 1.0 };
+}
+
+/**
+ * Wiry tangle stem — the connective tissue of the reference meadow.
+ * Unit height 1: curved (two bow harmonics), optionally nodding over at the
+ * tip, with 0–2 side branches, a bud or two, and tiny leaf flecks.
+ * Rendered as thin ribbons (camera is frontal and locked).
+ */
+export function buildWiryStem(seed: number): PlantBuild {
+  const rng = createRng(seed);
+  const b = new GeomBuilder();
+  const stemCol = srgb(palette.stemCyan).multiplyScalar(1.35);
+  const darkCol = srgb(palette.foliageTealDark);
+
+  const bow1 = rng.gauss() * 0.1;
+  const bow2 = rng.gauss() * 0.05;
+  const bowAng = rng.range(0, Math.PI * 2);
+  const hook = rng.next() < 0.42 ? rng.range(0.1, 0.26) : 0; // nodding tip
+  const hookAng = rng.range(0, Math.PI * 2);
+  const baseW = rng.range(0.0014, 0.0042);
+
+  const center = (t: number, out: Vector3) => {
+    const b1 = Math.sin(t * Math.PI) * bow1;
+    const b2 = Math.sin(t * Math.PI * 2) * bow2;
+    const hk = hook * smoothstep01((t - 0.72) / 0.28) ** 2;
+    out.set(
+      Math.cos(bowAng) * (b1 + b2) + Math.cos(hookAng) * hk,
+      t - hk * 0.55, // the hooked tip dips
+      Math.sin(bowAng) * (b1 + b2) * 0.5 + Math.sin(hookAng) * hk,
+    );
+  };
+
+  const ribbon = (
+    fn: (t: number, out: Vector3) => void,
+    t0: number,
+    t1: number,
+    w0: number,
+    segs: number,
+    col: Color,
+    sScale = 1,
+  ) => {
+    const c = new Vector3();
+    b.grid(segs, 1, (u, v, pos, normal) => {
+      const t = t0 + (t1 - t0) * u;
+      fn(t, c);
+      const va = v * 2 - 1;
+      const w = w0 * (1 - u * 0.55);
+      pos.set(c.x + va * w, c.y, c.z);
+      normal.set(0, 0, 1);
+      const shade = 0.55 + 0.45 * rngShade(t, seed);
+      return {
+        color: col.clone().multiplyScalar(shade),
+        data: { s: Math.min(1, t * sScale), head: 0, flutter: 0.12 * t, phase: seed % 7 },
+      };
+    });
+  };
+
+  ribbon(center, 0, 1, baseW, 9, rng.next() < 0.3 ? darkCol : stemCol);
+
+  // side branches
+  const branches = rng.int(0, 2);
+  const cAt = new Vector3();
+  for (let i = 0; i < branches; i++) {
+    const t0 = rng.range(0.45, 0.78);
+    center(t0, cAt);
+    const ang = rng.range(0, Math.PI * 2);
+    const len = rng.range(0.12, 0.28);
+    const up = rng.range(0.55, 1.1);
+    const bx = cAt.x;
+    const by = cAt.y;
+    const bz = cAt.z;
+    const branchFn = (t: number, out: Vector3) => {
+      const tt = t;
+      out.set(
+        bx + Math.cos(ang) * Math.cos(up) * tt * len,
+        by + Math.sin(up) * tt * len - tt * tt * len * 0.25,
+        bz + Math.sin(ang) * Math.cos(up) * tt * len * 0.6,
+      );
+    };
+    ribbon(branchFn, 0.05, 1, baseW * 0.6, 4, stemCol, 1);
+    if (rng.next() < 0.3) {
+      // small bud at branch tip — some teal, some red-tipped like the reference
+      branchFn(1, cAt);
+      const budCol =
+        rng.next() < 0.35
+          ? srgb(palette.red).multiplyScalar(1.1)
+          : varied(srgb(palette.foliageTealMid), rng, 0.06).multiplyScalar(1.2);
+      addBlob(b, cAt.clone(), rng.range(0.0035, 0.006), 1.25, budCol, Math.min(1, t0 + 0.2), 0.2, i * 2.1);
+    }
+  }
+
+  // main-tip bud for hooked stems
+  if (hook > 0 && rng.next() < 0.65) {
+    center(1, cAt);
+    const budCol = rng.next() < 0.3 ? srgb(palette.crimson).multiplyScalar(1.15) : varied(srgb(palette.foliageTealMid), rng, 0.08).multiplyScalar(1.2);
+    addBlob(b, cAt.clone(), rng.range(0.005, 0.009), 1.3, budCol, 1, 0.15, 3.3);
+  }
+
+  // tiny leaf flecks
+  const leaves = rng.int(1, 3);
+  for (let i = 0; i < leaves; i++) {
+    const t0 = rng.range(0.25, 0.7);
+    center(t0, cAt);
+    const ang = rng.range(0, Math.PI * 2);
+    const len = rng.range(0.04, 0.1);
+    const lx = cAt.x;
+    const ly = cAt.y;
+    const lz = cAt.z;
+    ribbon(
+      (t, out) =>
+        out.set(
+          lx + Math.cos(ang) * t * len,
+          ly + t * len * 0.7 - t * t * len * 0.5,
+          lz + Math.sin(ang) * t * len * 0.5,
+        ),
+      0,
+      1,
+      0.006,
+      3,
+      varied(srgb(palette.foliageTeal), rng, 0.08),
+    );
+  }
+
+  return { builder: b, headPivotY: 1 };
+}
+
+/** Deterministic pseudo-shade along a stem (no Math.random anywhere). */
+function rngShade(t: number, seed: number): number {
+  const x = Math.sin(t * 37.7 + seed * 0.61) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/**
+ * Feathery cosmos-foliage clump: thread-like leaflets radiating from stem
+ * nodes — the sharp green-teal filigree visible through the reference's
+ * focus band. Unit height ~0.5.
+ */
+export function buildFeatherClump(seed: number): PlantBuild {
+  const rng = createRng(seed);
+  const b = new GeomBuilder();
+  const teal = srgb(palette.foliageTeal);
+  const light = srgb(palette.foliageTealLight);
+  const stems = rng.int(2, 3);
+  for (let sIdx = 0; sIdx < stems; sIdx++) {
+    const baseAng = rng.range(0, Math.PI * 2);
+    const lean = rng.range(0.05, 0.3);
+    const h = rng.range(0.3, 0.5);
+    const bx = Math.cos(baseAng) * lean;
+    const bz = Math.sin(baseAng) * lean;
+    // node heights along a leaning axis
+    const nodes = rng.int(2, 4);
+    for (let n = 0; n <= nodes; n++) {
+      const t0 = 0.35 + (0.65 * n) / nodes;
+      const nx = bx * t0;
+      const ny = h * t0;
+      const nz = bz * t0;
+      const threads = rng.int(3, 6);
+      for (let i = 0; i < threads; i++) {
+        const ang = rng.range(0, Math.PI * 2);
+        const up = rng.range(-0.2, 0.9);
+        const len = rng.range(0.05, 0.14);
+        const col = varied(teal.clone().lerp(light, rng.next() * 0.7), rng, 0.07);
+        const phase = rng.next() * Math.PI * 2;
+        b.grid(3, 1, (u, v, pos) => {
+          const va = v * 2 - 1;
+          const w = 0.0024 * (1 - u * 0.6);
+          pos.set(
+            nx + Math.cos(ang) * Math.cos(up) * u * len + va * w,
+            ny + Math.sin(up) * u * len - u * u * len * 0.3,
+            nz + Math.sin(ang) * Math.cos(up) * u * len * 0.7,
+          );
+          return {
+            color: col.clone().multiplyScalar(0.7 + 0.5 * u),
+            data: { s: Math.min(1, t0), head: 0, flutter: 0.3 * u, phase },
+          };
+        });
+      }
+    }
+  }
+  return { builder: b, headPivotY: 0.5 };
 }
 
 /** Low dark leafy tuft filling the meadow floor. Unit height ~0.35. */

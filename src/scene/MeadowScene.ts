@@ -7,8 +7,12 @@
 import { Color, Mesh, Scene, ShaderMaterial, Vector3 } from "three";
 import {
   allPlacements,
+  bgField,
+  featherZones,
   SCATTER_SEED,
+  tangleZones,
   type Placement,
+  type ScatterZone,
 } from "../config/composition";
 import { frameWidthAt, placeFromScreen } from "../config/cameraConfig";
 import { palette } from "../config/palette";
@@ -22,15 +26,16 @@ import {
   buildForegroundMass,
   buildMidFlowerHead,
   buildFoliageTuft,
+  buildWiryStem,
+  buildFeatherClump,
   type PlantBuild,
 } from "./flowers/species";
+import type { Rng } from "../utils/prng";
 import { createVegetationMaterial, srgb } from "./shaders/vegetationMaterial";
 import { BokehSprites, type SpriteSpec } from "./vegetation/BokehSprites";
 import { InstancedPlants } from "./vegetation/InstancedPlants";
 import { addEnvironment } from "./environment";
 import { MECHANICS, type Mechanics, PlantSim } from "./wind/PlantSim";
-import { addStem } from "./flowers/species";
-import { GeomBuilder } from "./flowers/GeomBuilder";
 import type { QualityTier } from "../config/quality";
 
 interface HeroEntry {
@@ -110,6 +115,10 @@ export class MeadowScene {
       this.heroes.push({ material, simIdx });
     }
 
+    // background flower field — clusters of defocused blooms generated from
+    // the reference's density map (composition.bgField)
+    this.addBgField(spriteSpecs, spriteSimIndices, quality);
+
     this.sprites = new BokehSprites(spriteSpecs);
     this.sprites.simIndices = spriteSimIndices;
     scene.add(this.sprites.mesh);
@@ -117,12 +126,53 @@ export class MeadowScene {
     this.addFillerVegetation(quality);
   }
 
+  /** Weighted zone pick + gaussian point inside — the density-map sampler. */
+  private sampleZone(rng: Rng, zones: ScatterZone[]): [number, number] {
+    let total = 0;
+    for (const z of zones) total += z.w * z.rx * z.ry;
+    let r = rng.next() * total;
+    let zone = zones[zones.length - 1];
+    for (const z of zones) {
+      r -= z.w * z.rx * z.ry;
+      if (r <= 0) {
+        zone = z;
+        break;
+      }
+    }
+    const nx = Math.min(1, Math.max(0, zone.cx + rng.gauss() * zone.rx * 0.75));
+    const ny = Math.min(1, Math.max(0, zone.cy + rng.gauss() * zone.ry * 0.75));
+    return [nx, ny];
+  }
+
+  private addBgField(specs: SpriteSpec[], simIndices: number[], quality: QualityTier): void {
+    const rng = createRng(SCATTER_SEED ^ 0x77ee);
+    for (const cluster of bgField) {
+      const count = Math.max(2, Math.round(cluster.count * (0.5 + 0.5 * quality.vegetationDensity)));
+      for (let i = 0; i < count; i++) {
+        const [nx, ny] = this.sampleZone(rng, [cluster.zone]);
+        const depth = rng.range(cluster.depth[0], cluster.depth[1]);
+        const [x, y, z] = placeFromScreen(nx, ny, depth);
+        const size = rng.range(cluster.sizeFrac[0], cluster.sizeFrac[1]) * frameWidthAt(depth);
+        specs.push({
+          position: new Vector3(x, Math.max(y, 0.15), z),
+          size,
+          tint: rng.pick(cluster.colors),
+          kind: rng.pick(cluster.kinds),
+          seed: rng.int(0, 9999),
+        });
+        simIndices.push(
+          this.sim.addPlant(x, z, Math.max(y, 0.3), MECHANICS.backgroundStalk, 800000 + specs.length),
+        );
+      }
+    }
+  }
+
   private buildPlacement(p: Placement, headY: number, size: number, quality: QualityTier): PlantBuild | null {
     const facing = p.facing ?? [14, 0, 0];
     const detail = p.focusRole === "hero" ? quality.heroDetail : 0.6;
     switch (p.species) {
       case "cosmos":
-        return buildCosmos(p.seed, headY, size, facing, detail);
+        return buildCosmos(p.seed, headY, size, facing, detail, p.tint === palette.violet ? "violet" : "magenta");
       case "daisyWhite":
         return buildDaisy(p.seed, headY, size, facing, "white");
       case "daisyOrange":
@@ -145,28 +195,62 @@ export class MeadowScene {
     }
   }
 
-  /** Wiry teal stems + occasional leaves filling the midground band. */
+  /**
+   * The tangle: wiry curved/branching stems and feathery foliage clumps,
+   * scattered by the reference's density map rather than uniformly. Heads
+   * are placed in screen space (where the reference has them) and projected
+   * to continuous depths through the locked camera.
+   */
   private addFillerVegetation(quality: QualityTier): void {
     const rng = createRng(SCATTER_SEED);
-    const count = Math.floor(120 * quality.vegetationDensity);
-    const instances = [];
-    const stemCols = [palette.stemCyan, palette.foliageTeal, palette.foliageTealMid, palette.foliageTealDark];
-    for (let i = 0; i < count; i++) {
-      const z = -rng.range(1.0, 2.8);
-      const x = rng.range(-1.15, 1.15) * (0.35 + (-z) * 0.42);
-      const scale = rng.range(0.25, 0.72);
-      instances.push({
-        position: new Vector3(x, 0, z),
-        scale,
-        yaw: rng.range(0, Math.PI * 2),
-        tilt: rng.range(0, 0.22),
-        tint: new Color(srgb(rng.pick(stemCols))).multiplyScalar(rng.range(0.32, 0.68)),
-      });
-    }
-    const build = buildFillerStem();
-    const sys = new InstancedPlants(build, instances, this.sim, MECHANICS.microSprig, 1.0, 900000);
-    this.scene.add(sys.mesh);
-    this.instanced.push(sys);
+
+    // wiry stems: several geometry variants, zone-driven
+    const stemVariants = [buildWiryStem(9001), buildWiryStem(9002), buildWiryStem(9003), buildWiryStem(9004)];
+    const perVariant = Math.floor(66 * quality.vegetationDensity);
+    stemVariants.forEach((variant, vi) => {
+      const instances = [];
+      let guard = 0;
+      while (instances.length < perVariant && guard++ < perVariant * 10) {
+        const [nx, ny] = this.sampleZone(rng, tangleZones);
+        const depth = 0.95 + 1.85 * rng.next() ** 1.15; // continuous, biased near focus
+        const [x, yTop, z] = placeFromScreen(nx, ny, depth);
+        if (yTop < 0.14 || yTop > 1.05) continue;
+        instances.push({
+          position: new Vector3(x, 0, z),
+          scale: yTop, // unit-height geometry → head lands where sampled
+          yaw: rng.range(0, Math.PI * 2),
+          tilt: rng.range(0, 0.18),
+          tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.45, 1.0)),
+        });
+      }
+      const sys = new InstancedPlants(variant, instances, this.sim, MECHANICS.microSprig, 1.0, 900000 + vi * 1000);
+      this.scene.add(sys.mesh);
+      this.instanced.push(sys);
+    });
+
+    // feathery filigree clumps near the focus band
+    const featherVariants = [buildFeatherClump(9101), buildFeatherClump(9102)];
+    const perFeather = Math.floor(15 * quality.vegetationDensity);
+    featherVariants.forEach((variant, vi) => {
+      const instances = [];
+      let guard = 0;
+      while (instances.length < perFeather && guard++ < perFeather * 10) {
+        const [nx, ny] = this.sampleZone(rng, featherZones);
+        const depth = rng.range(1.05, 1.9);
+        const [x, yTop, z] = placeFromScreen(nx, ny, depth);
+        if (yTop < 0.1 || yTop > 0.6) continue;
+        instances.push({
+          position: new Vector3(x, 0, z),
+          scale: yTop / 0.5,
+          yaw: rng.range(0, Math.PI * 2),
+          tilt: rng.range(0, 0.15),
+          tint: new Color(1, 1, 1).multiplyScalar(rng.range(0.6, 1.1)),
+        });
+      }
+      const sys = new InstancedPlants(variant, instances, this.sim, MECHANICS.microSprig, 0.5, 905000 + vi * 1000);
+      this.scene.add(sys.mesh);
+      this.instanced.push(sys);
+    });
 
     this.addMidFlowers(quality);
     this.addFoliageTufts(quality);
@@ -217,7 +301,7 @@ export class MeadowScene {
   /** Dark leafy tufts along the meadow floor, close to the focus band. */
   private addFoliageTufts(quality: QualityTier): void {
     const rng = createRng(SCATTER_SEED ^ 0x1234);
-    const count = Math.floor(70 * quality.vegetationDensity);
+    const count = Math.floor(85 * quality.vegetationDensity);
     const instances = [];
     for (let i = 0; i < count; i++) {
       const z = -rng.range(0.9, 2.0);
@@ -247,12 +331,4 @@ export class MeadowScene {
     for (const sys of this.instanced) sys.sync(this.sim, time);
     this.sprites?.syncBends(out);
   }
-}
-
-/** A 1m wiry stem with a couple of leaf filaments — the unit filler plant. */
-function buildFillerStem(): PlantBuild {
-  const rng = createRng(777);
-  const b = new GeomBuilder();
-  addStem(b, 1.0, 0.002, rng, { bow: 0.06, flutterTop: 0.2, radial: 4, segs: 6 });
-  return { builder: b, headPivotY: 1.0 };
 }

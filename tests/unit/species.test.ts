@@ -4,11 +4,13 @@ import {
   buildBud,
   buildCosmos,
   buildDaisy,
+  buildFeatherClump,
   buildFoliageTuft,
   buildForegroundMass,
   buildMaroonBloom,
   buildMicroSprig,
   buildMidFlowerHead,
+  buildWiryStem,
   type PlantBuild,
 } from "../../src/scene/flowers/species";
 
@@ -25,6 +27,10 @@ const BUILDERS: [string, () => PlantBuild][] = [
   ["mid flower head", () => buildMidFlowerHead(4242)],
   ["foliage tuft", () => buildFoliageTuft(5151)],
   ["foreground mass", () => buildForegroundMass(140, 0.45, 0.05, "#a3141f")],
+  ["cosmos violet", () => buildCosmos(102, 0.55, 0.075, [64, 18, -6], 1, "violet")],
+  ["wiry stem", () => buildWiryStem(9001)],
+  ["wiry stem hooked", () => buildWiryStem(9003)],
+  ["feather clump", () => buildFeatherClump(9101)],
 ];
 
 describe("species builders", () => {

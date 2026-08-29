@@ -86,6 +86,7 @@ const VERT = /* glsl */ `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
   varying float vHeadFlag;
+  varying float vFlutter;
   varying vec2 vUv;
 
   ${GLSL_HELPERS}
@@ -165,6 +166,7 @@ const VERT = /* glsl */ `
     vNormalW = nrm;
     vWorldPos = wp;
     vHeadFlag = isHead;
+    vFlutter = aData.z;
     vUv = uv;
     gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
   }
@@ -183,6 +185,7 @@ const FRAG = /* glsl */ `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
   varying float vHeadFlag;
+  varying float vFlutter;
   varying vec2 vUv;
 
   float hash12(vec2 p) {
@@ -202,7 +205,12 @@ const FRAG = /* glsl */ `
     // thin-petal translucency: light leaking through from behind
     float sss = pow(clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0), 2.0) * uSss * vHeadFlag;
 
-    vec3 col = vColor * (hemi * 0.5 + uLightCol * (diff * 0.95 + sss * 0.55));
+    // tiny sprig blossoms (non-head, high flutter weight) scatter light like
+    // the reference's red poms — flatten their shading toward even brightness
+    float bloomF = clamp(vFlutter * 1.7, 0.0, 0.85) * (1.0 - vHeadFlag);
+    vec3 lit = hemi * 0.5 + uLightCol * (diff * 0.95 + sss * 0.55);
+    vec3 flatLit = uLightCol * 0.58 + uSkyCol * 0.12;
+    vec3 col = vColor * mix(lit, flatLit, bloomF);
 
     // organic petal surface: fine static grain + soft cell mottling breaks
     // the airbrushed flatness of procedural color under close inspection
@@ -212,8 +220,11 @@ const FRAG = /* glsl */ `
       col *= 0.94 + 0.06 * grain + 0.06 * mottle;
     }
 
-    // soil occlusion: the meadow floor swallows light
-    col *= mix(0.3, 1.0, smoothstep(0.02, 0.4, vWorldPos.y));
+    // soil occlusion: the meadow floor swallows light — but blossoms
+    // (high flutter weight) glow through, like the reference's low red poms
+    float occ = mix(0.3, 1.0, smoothstep(0.02, 0.4, vWorldPos.y));
+    occ = mix(occ, 1.0, clamp(vFlutter * 1.7, 0.0, 0.85));
+    col *= occ;
 
     // atmospheric depth: sink toward deep teal with distance
     float dist = length(vWorldPos - cameraPosition);
@@ -245,11 +256,11 @@ export function createVegetationMaterial(opts: VegetationMaterialOptions = {}): 
       uBend: { value: new Vector4(0, 0, 0, 0) },
       uGust: { value: 0 },
       uLightDir: { value: new Vector3(-0.35, 0.85, 0.4).normalize() },
-      uLightCol: { value: srgb("#cfe4e4").multiplyScalar(1.18) },
-      uSkyCol: { value: srgb("#7fb4c4").multiplyScalar(1.1) },
+      uLightCol: { value: srgb("#cfe4e4").multiplyScalar(1.32) },
+      uSkyCol: { value: srgb("#7fb4c4").multiplyScalar(1.12) },
       uGroundCol: { value: srgb("#0d2b33") },
       uAtmCol: { value: srgb(palette.bgTeal) },
-      uAtmRange: { value: new Vector2(1.8, 7.5) },
+      uAtmRange: { value: new Vector2(2.2, 8.0) },
       uSss: { value: opts.sss ?? 0.65 },
     },
   });
