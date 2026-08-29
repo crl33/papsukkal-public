@@ -140,10 +140,15 @@ Non-negotiable color rules:
 
 A second pass rebuilt the floral landscape against the photograph:
 
-- **Irregular petals**: heroes use `addIrregularPetals` — uneven lengths,
-  jittered spacing, per-petal droop/lift/twist/tip-curl, wavy ragged edges,
-  two staggered layers, per-petal luminance; centers are domed cones with a
+- **Painted petal cards**: heroes use `addTexturedPetals` — curved cards on a
+  seeded painted atlas, so the organic silhouette comes from the artwork's
+  alpha rather than the mesh outline. Per-petal pose keeps the irregularity
+  (uneven length, jittered spacing, droop/lift/twist/tip-curl, staggered
+  whorls, per-petal luminance); centres are `addTexturedCenter` domes with a
   physical stamen-bead ring (reads as a crescent under head tilt).
+  (The earlier `addIrregularPetals` / `addNaturalCenter` path this section
+  originally described is retired — see
+  `agent-workspace/00-context/codebase-map/objects/repo/retired-petal-builders.md`.)
 - **Density map**: filler vegetation (wiry branching stems, feathery
   filigree, floor tufts) is scattered by screen-space elliptical zones
   matching §7's distribution, never uniformly.

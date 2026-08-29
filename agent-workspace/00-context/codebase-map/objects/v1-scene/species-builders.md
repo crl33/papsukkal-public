@@ -54,10 +54,9 @@ Citations: `versions/v1-procedural/src/scene/flowers/species.ts:276-353`,
 
 `addPetalRing:106`, `addIrregularPetals:177`, `addNaturalCenter:387` and
 `addCenterDome:420` have **zero call sites** in the tree — verified by grep over
-`*.ts`; the only surviving mentions are their own definitions and a stale line
-in `versions/v1-procedural/docs/visual-reference.md:143`, which still claims heroes use
-`addIrregularPetals`. They were the pre-atlas generation, where silhouette came
-from geometry. See `repo/retired-petal-builders.md`.
+`*.ts`; the only surviving mentions are their own definitions. They were the
+pre-atlas generation, where silhouette came from geometry. See
+`repo/retired-petal-builders.md`.
 
 ## Connected to
 

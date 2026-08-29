@@ -51,9 +51,10 @@ editor reading `species.ts` top-to-bottom meets `addPetalRing` long before
   `blossom` helper inside `buildMicroSprig` (`species.ts:719-749`) builds a 5-petal star
   from raw grids plus one `addBlob` — a few pixels across, built in the thousands.
 - Verification run at 0b26008: `grep -rn` for each of the four names across
-  the `src`, `tests`, `scripts` and `docs` trees of V1 returns only the definition line —
-  plus one prose mention of `addIrregularPetals` in
-  `versions/v1-procedural/docs/visual-reference.md:143`, which is now stale.
+  the `src`, `tests`, `scripts` and `docs` trees of V1 returns only the definition line.
+  (A stale prose mention of `addIrregularPetals` in
+  `versions/v1-procedural/docs/visual-reference.md` was corrected when this card was
+  written; that section now describes the atlas path.)
 - Historical proof they were live: `git show v1-procedural:src/scene/flowers/species.ts`
   shows all four called (`addIrregularPetals` at 371/387/438/516, `addNaturalCenter` at
   402, `addCenterDome` at 468/536/626/656/902, `addPetalRing` at 611/643/889).
@@ -78,9 +79,8 @@ Citations: `versions/v1-procedural/src/scene/flowers/species.ts:81`, `versions/v
 
 - **Hits:** nothing in the build or the tests — that is the point. Deleting the four plus
   their two interfaces compiles clean and changes no pixel; `npm run build:v1`
-  (`tsc --noEmit && vite build`) is the check. The one real consequence is documentary:
-  `versions/v1-procedural/docs/visual-reference.md:143` still tells the reader heroes use
-  `addIrregularPetals`, and would have to be corrected in the same change.
+  (`tsc --noEmit && vite build`) is the check. The only consequence is documentary: grep
+  the docs for the four names before deleting, and correct whatever still describes them.
 - **Does not hit:** the small helpers they call. `varied` (`species.ts:22`),
   `smoothstep01` (`species.ts:147`) and `addBlob` (`species.ts:440`) all have live callers
   elsewhere in the file (`species.ts:574`, `747`, `800`, `966`, `1050`, …), so removing
@@ -97,7 +97,7 @@ back to `addPetalRing` — the atlas path is the current one.
 | Surface | Role |
 |---|---|
 | `versions/v1-procedural/src/scene/flowers/species.ts` | defines them; never calls them |
-| `versions/v1-procedural/docs/visual-reference.md:143` | stale prose reference |
+| `versions/v1-procedural/docs/visual-reference.md` | describes the atlas path that replaced them |
 | git tag `v1-procedural` | the snapshot where all four were live |
 
 ## See
