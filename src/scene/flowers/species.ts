@@ -224,20 +224,20 @@ export function buildCosmos(
     addPetalRing(b, rng, {
       count: 8,
       length: diameter * 0.5 - diameter * 0.1,
-      width: diameter * 0.34,
+      width: diameter * 0.285,
       cone: 0.28,
       cup: 0.55,
       arch: 0.8,
       baseRadius: diameter * 0.075,
-      nu: Math.round(5 * detail) + 2,
-      nv: Math.round(4 * detail) + 1,
+      nu: Math.round(9 * detail) + 2,
+      nv: Math.round(6 * detail) + 1,
       tipNotch: 0.16,
       flutter: 0.45,
       colorFn: (u, va, petalIdx) => {
         const c = cDeep.clone().lerp(cMid, smoothstep01(u * 2.2)).lerp(cHi, smoothstep01((u - 0.4) * 1.7) * 0.85);
-        // radial striations — visible veins running the petal's length
+        // radial striations — subtle veins running the petal's length
         const stripe = 0.5 + 0.5 * Math.sin(va * 11.5);
-        c.multiplyScalar(1 - 0.3 * stripe * (1 - u * 0.35));
+        c.multiplyScalar(1 - 0.17 * stripe * (1 - u * 0.35));
         // per-petal light variation: overlapping petals catch light unevenly
         const petalLum = 0.84 + 0.28 * (0.5 + 0.5 * Math.sin(petalIdx * 12.9898 + 4.1));
         c.multiplyScalar(petalLum);
@@ -421,6 +421,7 @@ export function buildMicroSprig(
 
     const bloomR = spread * rng.range(0.07, 0.115);
     const col = varied(cA.clone().lerp(cB, rng.next()), rng, 0.05);
+    if (kind === "red") col.multiplyScalar(1.35);
     if (kind === "red") {
       addBlob(b, new Vector3(px, y, pz), bloomR, 0.85, col, sAvg, 0.5, phase);
     } else {

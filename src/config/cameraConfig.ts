@@ -10,12 +10,9 @@ export const cameraConfig = {
   height: 0.52,
   /** Aspect ratio of the reference photograph. Composition is authored in it. */
   refAspect: 1.51,
-  /** Distance to the sharp focus plane, meters. */
+  /** Distance to the sharp focus plane, meters. The blur curves themselves
+   * (dead zone, near/far strength) live in CinematicDofPass. */
   focusDistance: 1.18,
-  /** Focus band — world-space range over which blur ramps up. */
-  focusRange: 0.5,
-  /** Bokeh disc scale (post-processing units, tuned by eye). */
-  bokehScale: 8.0,
   near: 0.05,
   far: 30,
 } as const;

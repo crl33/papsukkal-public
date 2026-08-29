@@ -124,8 +124,10 @@ Non-negotiable color rules:
    locked camera (so the rendered frame matches the photo layout by
    construction).
 4. Depth of field is a real post-process reading the depth buffer
-   (circle-of-confusion based), tuned so the focus band ≈ ±0.25 m and bokeh
-   discs at −5 m reach ~6–8% of frame height.
+   (circle-of-confusion based, `CinematicDofPass`): a ±0.12 m dead zone
+   around the focus plane, then blur ramping on a saturating `|d−f|/d`
+   curve — background discs at −4 m and the extreme foreground both reach
+   the pyramid's widest blur level.
 5. Background poppies/bokeh sources are cheap billboards with real depth —
    the DOF turns them into authentic discs/rings.
 6. Foreground masses are real low-poly flower blobs at −0.25…−0.6 m attached
