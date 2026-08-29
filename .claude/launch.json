@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "dev",
+      "name": "v1",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": ["run", "dev:v1"],
       "port": 5183
+    },
+    {
+      "name": "v2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:v2"],
+      "port": 5193
     }
   ]
 }

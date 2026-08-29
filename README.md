@@ -1,48 +1,22 @@
 # Papsukkal
 
-The public landing page for Papsukkal: a real-time, living reconstruction of
-a wildflower photograph. A locked photographic camera looks into a meadow of
-procedural cosmos, daisies, poppies and micro-blooms with an extremely
-shallow depth of field, while a physically-modeled breeze — a shared spatial
-wind field driving hundreds of individual damped-oscillator plants — moves
-through the scene. The photograph, but alive.
+The public landing page for Papsukkal: a wildflower photograph, alive with
+a real-time breeze.
 
-Built with TypeScript, Three.js and Vite. No camera motion, no sine-wave
-vegetation, no faked blur: real depth, real circle-of-confusion optics, real
-plant mechanics. Details in [docs/architecture.md](docs/architecture.md).
+Two complete, independent implementations live in this repository — see
+[docs/versions.md](docs/versions.md):
+
+| | Where | Idea |
+| --- | --- | --- |
+| **V1 — Procedural 3D Floral Renderer** | [`versions/v1-procedural/`](versions/v1-procedural/) | The meadow is procedurally reconstructed in 3D: generated flowers, spatial wind field, per-plant oscillators, custom cinematic depth of field. Archived immutably as tag `v1-procedural` / branch `archive/v1-procedural`. |
+| **V2 — Reference-Driven Living Photograph** | [`versions/v2-reference-driven/`](versions/v2-reference-driven/) | The reference photograph itself is decomposed into layers and animated with shader deformation driven by V1's breeze model. At zero wind it *is* the photograph. |
 
 ## Quick start
 
 ```bash
-npm install
-npm run dev        # http://localhost:5183
+npm run install:v1 && npm run dev:v1   # V1 on http://localhost:5183
+npm run install:v2 && npm run dev:v2   # V2 on http://localhost:5193
 ```
 
-## Build & test
-
-```bash
-npm run build      # typecheck + production build → dist/
-npm run preview    # serve dist/
-npm test           # unit tests (wind field, plant sim, noise)
-npm run test:e2e   # playwright smoke/responsive/reduced-motion suite
-npm run shots      # deterministic screenshots at all framings → shots/
-```
-
-First e2e run may need `npx playwright install chromium`.
-
-## Documentation
-
-- [docs/architecture.md](docs/architecture.md) — rendering system, wind
-  model, DOF, performance strategy
-- [docs/visual-reference.md](docs/visual-reference.md) — decomposition of
-  the master reference photograph and derived decisions
-- [docs/dev-workflow.md](docs/dev-workflow.md) — commands, deterministic
-  capture, the dev comparison overlay
-- [docs/CREDITS.md](docs/CREDITS.md) — adapted techniques and licenses
-
-## Accessibility & performance
-
-`prefers-reduced-motion` keeps the full scene and reduces the breeze to a
-near-still whisper (12% intensity).
-Quality tiers adapt pixel ratio, DOF resolution and vegetation density to
-the device — the hero composition is never reduced.
+Each version is fully self-contained (own `package.json`, sources, assets,
+tests and docs) and documents itself in its own `docs/` directory.
