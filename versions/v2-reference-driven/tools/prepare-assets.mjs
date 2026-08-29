@@ -2,19 +2,22 @@
  * Offline asset preparation (development-time only — nothing here runs on
  * the public site). From the reference photograph it produces:
  *
- *   public/reference/layers/<id>.png       RGBA cutout per moving layer
- *   public/reference/layers/<id>-mask.png  (debug) the cutout mask
+ *   public/reference/layers/<id>.png       RGBA MOVING cutout (tight)
+ *   public/reference/layers/<id>-bg.png    RGBA STATIC background patch
+ *   public/reference/layers/<id>-mask.png  (debug) the tight mask
  *   public/reference/layers/plate.jpg      clean background plate
  *
  * MOVING-UNIT DISCIPLINE (see tools/masks.mjs):
- *  - each cutout mask is a generous hand-authored SILHOUETTE covering the
- *    whole botanical structure — no color keying, no missed dark petals;
- *  - the plate reconstruction region is the cutout mask EXPANDED by a
- *    motion margin (~18px, more than the runtime displacement clamp), so
- *    any pixel a sway can reveal is reconstructed background — a moving
- *    flower can never expose leftover copies of itself;
- *  - masks are softly windowed to their crop rects so feather never clips
- *    into a hard edge at a layer boundary.
+ *  - the MOVING cutout is TIGHT: only the flower's own pixels (unGated
+ *    chroma catches dark petals; structural SVG covers stem/center/calyx);
+ *  - the STATIC PATCH holds the true background inside the silhouette but
+ *    outside the flower — the world around a flower never moves;
+ *  - the plate reconstruction region is the SILHOUETTE expanded by a
+ *    motion margin (> the runtime displacement clamp), so a sway can only
+ *    reveal static patch or reconstructed background — never leftover
+ *    flower;
+ *  - all masks are softly windowed to their crop rects (image borders
+ *    excepted) so feather never clips into a hard edge.
  *
  * Deterministic; sharp only; no AI.
  */
@@ -42,22 +45,48 @@ async function toPlane(pipeline) {
   return out;
 }
 
-/** Build one layer's cutout mask (Uint8 0..255, full frame). */
-async function buildCutoutMask(layer) {
-  const svgRaw = await sharp(Buffer.from(layer.svg)).ensureAlpha().raw().toBuffer();
+/** Rasterize an SVG string to a hard Uint8 plane. */
+async function rasterSvg(svg) {
+  const raw = await sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer();
   const hard = new Uint8Array(IMG_W * IMG_H);
   for (let i = 0; i < IMG_W * IMG_H; i++) {
-    hard[i] = Math.min(255, (svgRaw[i * 4] * svgRaw[i * 4 + 3]) / 255);
+    hard[i] = Math.min(255, (raw[i * 4] * raw[i * 4 + 3]) / 255);
   }
+  return hard;
+}
 
-  // feather the silhouette edge
-  const mask = await toPlane(
-    sharp(Buffer.from(hard), { raw: { width: IMG_W, height: IMG_H, channels: 1 } }).blur(
-      layer.feather ?? 2,
-    ),
-  );
+/** n passes of 3×3 max-dilate. */
+function dilate(plane, passes) {
+  let cur = plane;
+  for (let p = 0; p < passes; p++) {
+    const next = new Uint8Array(cur);
+    for (let y = 1; y < IMG_H - 1; y++) {
+      for (let x = 1; x < IMG_W - 1; x++) {
+        const i = y * IMG_W + x;
+        let mx = cur[i];
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) mx = Math.max(mx, cur[i + dy * IMG_W + dx]);
+        next[i] = mx;
+      }
+    }
+    cur = next;
+  }
+  return cur;
+}
 
-  // fade out where the structure slips behind foreground blur (anchor zone)
+/** Calibrated flower-color scores (no value gate — dark petals count). */
+function chromaScore(key, R, G, B) {
+  if (key === "orange") return R - B + 0.3 * (G - B);
+  if (key === "white") {
+    const mx = Math.max(R, G, B);
+    return mx >= 150 && mx - Math.min(R, G, B) <= 70 ? 255 : -1;
+  }
+  return Math.max(R - G + 0.45 * (B - G), 2.2 * (B - G)); // magenta
+}
+
+/** Apply fadeOut + rect window (shared by silhouette and tight masks). */
+function fadeAndWindow(mask, layer) {
+
   if (layer.fadeOut) {
     const { y0, y1 } = layer.fadeOut;
     for (let y = y0; y < IMG_H; y++) {
@@ -66,7 +95,6 @@ async function buildCutoutMask(layer) {
     }
   }
 
-  // soft window to the crop rect: nothing may clip into a hard edge
   const [nx, ny, nw, nh] = layer.rect;
   const rx0 = Math.round(nx * IMG_W);
   const ry0 = Math.round(ny * IMG_H);
@@ -98,8 +126,64 @@ async function buildCutoutMask(layer) {
   return mask;
 }
 
-/** Write the RGBA cutout for a layer, cropped to its rect. */
-async function writeCutout(layer, mask) {
+/**
+ * Build a layer's mask set:
+ *   silhouette — plate hole + patch extent (feathered, faded, windowed)
+ *   tight      — the moving flower-only cutout (chroma ∪ structural SVG,
+ *                closed, feathered, contained within the silhouette)
+ *   patch      — silhouette · (1 − dilated tight): static background
+ */
+async function buildMasks(layer) {
+  const silhouetteHard = await rasterSvg(layer.svg);
+  const silhouette = fadeAndWindow(
+    await toPlane(
+      sharp(Buffer.from(silhouetteHard), { raw: { width: IMG_W, height: IMG_H, channels: 1 } }).blur(
+        layer.feather ?? 2,
+      ),
+    ),
+    layer,
+  );
+
+  if (!layer.tight) {
+    return { silhouette, tight: silhouette, patch: null };
+  }
+
+  // structural shapes + un-gated chroma inside the silhouette
+  const tightHard = layer.tight.svg ? await rasterSvg(layer.tight.svg) : new Uint8Array(IMG_W * IMG_H);
+  if (layer.tight.key) {
+    const thr = layer.tight.threshold ?? 50;
+    for (let i = 0; i < IMG_W * IMG_H; i++) {
+      if (silhouetteHard[i] < 24) continue;
+      const s = chromaScore(layer.tight.key, ref[i * 4], ref[i * 4 + 1], ref[i * 4 + 2]);
+      if (s > thr) tightHard[i] = Math.max(tightHard[i], Math.min(255, (s - thr) * 8));
+    }
+  }
+  const closed = dilate(tightHard, 2); // close pinholes between petal pixels
+  const tightSoft = await toPlane(
+    sharp(Buffer.from(closed), { raw: { width: IMG_W, height: IMG_H, channels: 1 } }).blur(
+      layer.tightFeather ?? 1.4,
+    ),
+  );
+  const tight = new Uint8Array(IMG_W * IMG_H);
+  for (let i = 0; i < tight.length; i++) tight[i] = Math.min(tightSoft[i], silhouette[i]);
+
+  // static patch: true background inside the silhouette, clear of the
+  // flower's edge band (the plate fill shows through that thin ring)
+  const tightWide = await toPlane(
+    sharp(Buffer.from(dilate(closed, 2)), { raw: { width: IMG_W, height: IMG_H, channels: 1 } }).blur(1.2),
+  );
+  const patch = new Uint8Array(IMG_W * IMG_H);
+  let any = 0;
+  for (let i = 0; i < patch.length; i++) {
+    const v = Math.round((silhouette[i] * (255 - tightWide[i])) / 255);
+    patch[i] = v;
+    if (v > 8) any++;
+  }
+  return { silhouette, tight, patch: any > 200 ? patch : null };
+}
+
+/** Write an RGBA cutout for a layer, cropped to its rect. */
+async function writeCutout(layer, mask, suffix = "") {
   const [nx, ny, nw, nh] = layer.rect;
   const x0 = Math.round(nx * IMG_W);
   const y0 = Math.round(ny * IMG_H);
@@ -118,11 +202,13 @@ async function writeCutout(layer, mask) {
   }
   await sharp(out, { raw: { width: w, height: h, channels: 4 } })
     .png()
-    .toFile(join(outDir, `${layer.id}.png`));
-  await sharp(Buffer.from(mask), { raw: { width: IMG_W, height: IMG_H, channels: 1 } })
-    .png()
-    .toFile(join(outDir, `${layer.id}-mask.png`));
-  console.log(`${layer.id}.png  (${w}×${h})`);
+    .toFile(join(outDir, `${layer.id}${suffix}.png`));
+  if (!suffix) {
+    await sharp(Buffer.from(mask), { raw: { width: IMG_W, height: IMG_H, channels: 1 } })
+      .png()
+      .toFile(join(outDir, `${layer.id}-mask.png`));
+  }
+  console.log(`${layer.id}${suffix}.png  (${w}×${h})`);
 }
 
 /**
@@ -222,9 +308,10 @@ async function buildPlate(plateMask) {
 
 const union = new Uint8Array(IMG_W * IMG_H);
 for (const layer of riggedLayers) {
-  const mask = await buildCutoutMask(layer);
-  await writeCutout(layer, mask);
-  for (let i = 0; i < union.length; i++) union[i] = Math.max(union[i], mask[i]);
+  const { silhouette, tight, patch } = await buildMasks(layer);
+  await writeCutout(layer, tight);
+  if (patch) await writeCutout(layer, patch, "-bg");
+  for (let i = 0; i < union.length; i++) union[i] = Math.max(union[i], silhouette[i]);
 }
 
 // plate-reconstruction region: cutout union EXPANDED by the motion margin —

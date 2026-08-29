@@ -41,7 +41,7 @@ export class LayerMesh {
    * margin (MOTION_MARGIN_PX in tools/prepare-assets.mjs) must exceed the
    * pixel equivalent of this — a sway may only ever reveal reconstructed
    * background, never leftover flower. 0.013 img ≈ 16px. */
-  static readonly MAX_BEND_IMG = 0.013;
+  static readonly MAX_BEND_IMG = 0.01;
   static readonly MAX_ROT = 0.05;
 
   /** Push this frame's simulated deflection (meters) + head-lag rotation

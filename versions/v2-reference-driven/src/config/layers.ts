@@ -38,6 +38,9 @@ export interface LayerDef {
   id: string;
   /** File under public/reference/ */
   file: string;
+  /** Static background patch (the true pixels around/between the flower —
+   * drawn just beneath the moving cutout and NEVER moved). */
+  bgFile?: string;
   /** Crop rect [x, y, w, h] in normalized image coords. */
   rect: [number, number, number, number];
   /** Painter's order, back → front. */
@@ -66,6 +69,7 @@ export const layers: LayerDef[] = [
   {
     id: "cosmos-2",
     file: "reference/layers/cosmos-2.png",
+    bgFile: "reference/layers/cosmos-2-bg.png",
     rect: [0.395, 0.27, 0.175, 0.4],
     order: 8,
     rig: {
@@ -81,6 +85,7 @@ export const layers: LayerDef[] = [
   {
     id: "daisy-white",
     file: "reference/layers/daisy-white.png",
+    bgFile: "reference/layers/daisy-white-bg.png",
     rect: [0.505, 0.29, 0.085, 0.155],
     order: 9,
     rig: {
@@ -96,6 +101,7 @@ export const layers: LayerDef[] = [
   {
     id: "hero-cosmos",
     file: "reference/layers/hero-cosmos.png",
+    bgFile: "reference/layers/hero-cosmos-bg.png",
     rect: [0.115, 0.145, 0.28, 0.535],
     order: 10,
     rig: {
@@ -113,6 +119,7 @@ export const layers: LayerDef[] = [
   {
     id: "orange-ur",
     file: "reference/layers/orange-ur.png",
+    bgFile: "reference/layers/orange-ur-bg.png",
     rect: [0.77, 0.2, 0.135, 0.235],
     order: 11,
     rig: {
@@ -128,6 +135,7 @@ export const layers: LayerDef[] = [
   {
     id: "orange-lr",
     file: "reference/layers/orange-lr.png",
+    bgFile: "reference/layers/orange-lr-bg.png",
     rect: [0.815, 0.53, 0.125, 0.2],
     order: 12,
     rig: {
@@ -160,6 +168,7 @@ export const layers: LayerDef[] = [
   {
     id: "red-spray",
     file: "reference/layers/red-spray.png",
+    bgFile: "reference/layers/red-spray-bg.png",
     rect: [0.27, 0.385, 0.235, 0.32],
     order: 13,
     rig: {
@@ -168,13 +177,14 @@ export const layers: LayerDef[] = [
       headRadius: 0.09,
       mechanics: "microSprig",
       windPos: [-0.11, -1.22, 0.42],
-      bendScale: 0.3,
+      bendScale: 0.22,
       rotGain: 0,
     },
   },
   {
     id: "daisy-pair",
     file: "reference/layers/daisy-pair.png",
+    bgFile: "reference/layers/daisy-pair-bg.png",
     rect: [0.585, 0.405, 0.08, 0.175],
     order: 14,
     rig: {
@@ -190,6 +200,7 @@ export const layers: LayerDef[] = [
   {
     id: "yellow-edge",
     file: "reference/layers/yellow-edge.png",
+    bgFile: "reference/layers/yellow-edge-bg.png",
     rect: [0.672, 0.352, 0.115, 0.15],
     order: 15,
     rig: {
@@ -205,6 +216,7 @@ export const layers: LayerDef[] = [
   {
     id: "violet-c",
     file: "reference/layers/violet-c.png",
+    bgFile: "reference/layers/violet-c-bg.png",
     rect: [0.45, 0.695, 0.125, 0.185],
     order: 16,
     rig: {

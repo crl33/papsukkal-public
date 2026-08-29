@@ -60,11 +60,24 @@ export class App {
     this.sim = new PlantSim(this.wind, 64);
 
     const loader = new TextureLoader();
-    let pending = layers.length;
+    // static background patches render just beneath their moving cutout
+    const loadDefs: (typeof layers)[number][] = [];
+    for (const def of layers) {
+      if (def.bgFile) {
+        loadDefs.push({
+          id: `${def.id}-bg`,
+          file: def.bgFile,
+          rect: def.rect,
+          order: def.order - 0.5,
+        });
+      }
+      loadDefs.push(def);
+    }
+    let pending = loadDefs.length;
     const done = () => {
       if (--pending === 0) this.start(onReady);
     };
-    for (const def of layers) {
+    for (const def of loadDefs) {
       loader.load(
         `${import.meta.env.BASE_URL}${def.file}`,
         (tex: Texture) => {
