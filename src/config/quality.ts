@@ -20,7 +20,8 @@ export function pickInitialTier(): QualityTier {
   const params = new URLSearchParams(location.search);
   const forced = params.get("quality");
   if (forced && forced in QUALITY_TIERS) return QUALITY_TIERS[forced as QualityTier["name"]];
-  // heuristic first guess; App refines by measuring frame times
+  // heuristic first guess; App additionally drops resolution at runtime if
+  // sustained frame times prove the guess too optimistic
   const dpr = window.devicePixelRatio ?? 1;
   const cores = navigator.hardwareConcurrency ?? 4;
   const mobile = /Mobi|Android/i.test(navigator.userAgent);

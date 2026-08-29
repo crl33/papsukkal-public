@@ -125,7 +125,7 @@ export const heroes: Placement[] = [
     sizeFrac: 0.09,
     focusRole: "support",
     tint: palette.yellow,
-    facing: [32, 0, 55],
+    facing: [24, -58, 32],
     seed: 108,
   },
   {

@@ -319,10 +319,10 @@ export function buildBud(seed: number, headY: number, size: number, tint?: strin
   const rng = createRng(seed);
   const b = new GeomBuilder();
   addStem(b, headY, 0.0012 + size * 0.02, rng, { bow: rng.range(0.02, 0.05) });
-  const base = tint ? srgb(tint) : srgb(palette.foliageTealMid).multiplyScalar(0.62).offsetHSL(0, -0.12, 0);
+  const base = tint ? srgb(tint) : srgb(palette.foliageTealMid).multiplyScalar(0.8).offsetHSL(0, -0.06, 0);
   const tipCol = tint
     ? srgb(tint).clone().offsetHSL(0, 0.05, 0.08)
-    : srgb(palette.foliageTealLight).multiplyScalar(0.7).offsetHSL(0, -0.1, 0);
+    : srgb(palette.foliageTealLight).multiplyScalar(0.85).offsetHSL(0, -0.05, 0);
   headSection(b, headY, [rng.range(-14, 14), rng.range(0, 360), 0], () => {
     b.grid(7, 9, (u, v, pos, normal) => {
       const phi = u * Math.PI;

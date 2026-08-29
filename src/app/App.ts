@@ -31,6 +31,10 @@ export class App {
   private fixedTime: number | null = null;
   private reducedMotion = false;
   private lastNow = 0;
+  /** Runtime adaptive quality: EMA of frame time + downgrade latch. */
+  private frameEma = 16.7;
+  private slowFrames = 0;
+  private downgraded = false;
 
   constructor(opts: AppOptions) {
     const params = new URLSearchParams(location.search);
@@ -128,7 +132,8 @@ export class App {
     }
     this.camera.updateProjectionMatrix();
 
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.quality.maxPixelRatio));
+    const dprCap = this.downgraded ? 1 : this.quality.maxPixelRatio;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
     this.renderer.setSize(w, h);
     this.post.setSize(w, h);
   }
@@ -140,6 +145,27 @@ export class App {
     this.sim.update(dt);
     this.meadow.syncToGpu(this.sim.time);
     this.renderFrame();
+    this.watchPerformance(dt * 1000);
+  }
+
+  /**
+   * If the initial tier guess proves too optimistic, permanently drop the
+   * render resolution (pixel ratio + post buffers). Composition and hero
+   * flowers are never touched — only pixels get cheaper.
+   */
+  private watchPerformance(frameMs: number): void {
+    if (this.downgraded || this.fixedTime !== null) return;
+    this.frameEma += (Math.min(frameMs, 100) - this.frameEma) * 0.05;
+    if (this.frameEma > 27) {
+      if (++this.slowFrames > 90) {
+        this.downgraded = true;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.post.setSize(window.innerWidth, window.innerHeight);
+      }
+    } else {
+      this.slowFrames = 0;
+    }
   }
 
   private renderFrame(): void {

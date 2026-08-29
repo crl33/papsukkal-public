@@ -86,6 +86,7 @@ const VERT = /* glsl */ `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
   varying float vHeadFlag;
+  varying vec2 vUv;
 
   ${GLSL_HELPERS}
 
@@ -164,6 +165,7 @@ const VERT = /* glsl */ `
     vNormalW = nrm;
     vWorldPos = wp;
     vHeadFlag = isHead;
+    vUv = uv;
     gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
   }
 `;
@@ -181,6 +183,13 @@ const FRAG = /* glsl */ `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
   varying float vHeadFlag;
+  varying vec2 vUv;
+
+  float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
 
   void main() {
     vec3 N = normalize(vNormalW);
@@ -194,6 +203,14 @@ const FRAG = /* glsl */ `
     float sss = pow(clamp(dot(-N, L) * 0.5 + 0.5, 0.0, 1.0), 2.0) * uSss * vHeadFlag;
 
     vec3 col = vColor * (hemi * 0.5 + uLightCol * (diff * 0.95 + sss * 0.55));
+
+    // organic petal surface: fine static grain + soft cell mottling breaks
+    // the airbrushed flatness of procedural color under close inspection
+    if (vHeadFlag > 0.5) {
+      float grain = hash12(floor(vUv * 96.0) + floor(vWorldPos.xz * 700.0));
+      float mottle = hash12(floor(vUv * vec2(7.0, 16.0)) + floor(vWorldPos.xz * 90.0));
+      col *= 0.94 + 0.06 * grain + 0.06 * mottle;
+    }
 
     // soil occlusion: the meadow floor swallows light
     col *= mix(0.3, 1.0, smoothstep(0.02, 0.4, vWorldPos.y));

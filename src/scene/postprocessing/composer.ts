@@ -36,9 +36,11 @@ const GRADE_FRAG = /* glsl */ `
     vec3 c = inputColor.rgb;
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
 
-    // teal-navy shadow bias (the reference's shadows are never neutral)
+    // teal-navy shadow bias (the reference's shadows are never neutral),
+    // with a slight luminous lift — deep shadows glow navy, never crush flat
     float sh = pow(1.0 - clamp(luma, 0.0, 1.0), 2.2);
     c = mix(c, c * shadowTint + shadowTint * 0.015, sh * 0.55);
+    c += vec3(0.010, 0.022, 0.034) * sh;
 
     // gentle filmic contrast around mid gray
     c = mix(vec3(0.5), c, contrast);
