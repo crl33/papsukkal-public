@@ -33,6 +33,8 @@ export class App {
   private lastNow = 0;
   /** Runtime adaptive quality: EMA of frame time + downgrade latch. */
   private frameEma = 16.7;
+  /** Rolling estimate of the display's own frame interval (decaying min). */
+  private frameFloor = 16.7;
   private slowFrames = 0;
   private downgraded = false;
 
@@ -84,6 +86,7 @@ export class App {
     if (this.fixedTime !== null) {
       this.sim.advanceTo(this.fixedTime);
       this.meadow.syncToGpu(this.fixedTime);
+      this.post.grade.setGrainTime(this.fixedTime);
       this.renderFrame();
       // static frame; re-render only on resize
       window.addEventListener("resize", () => {
@@ -94,6 +97,7 @@ export class App {
       (window as unknown as Record<string, unknown>).__advanceTo = (t: number) => {
         this.sim.advanceTo(t);
         this.meadow.syncToGpu(t);
+        this.post.grade.setGrainTime(t);
         this.renderFrame();
       };
     } else {
@@ -144,6 +148,7 @@ export class App {
     this.lastNow = now;
     this.sim.update(dt);
     this.meadow.syncToGpu(this.sim.time);
+    this.post.grade.setGrainTime(this.sim.time);
     this.renderFrame();
     this.watchPerformance(dt * 1000);
   }
@@ -152,11 +157,17 @@ export class App {
    * If the initial tier guess proves too optimistic, permanently drop the
    * render resolution (pixel ratio + post buffers). Composition and hero
    * flowers are never touched — only pixels get cheaper.
+   *
+   * The threshold adapts to the display's own cadence (decaying rolling min
+   * of the frame interval), so 30 Hz monitors / low-power display throttling
+   * never trigger a false downgrade; hidden tabs are ignored entirely.
    */
   private watchPerformance(frameMs: number): void {
-    if (this.downgraded || this.fixedTime !== null) return;
-    this.frameEma += (Math.min(frameMs, 100) - this.frameEma) * 0.05;
-    if (this.frameEma > 27) {
+    if (this.downgraded || this.fixedTime !== null || document.hidden) return;
+    const ms = Math.min(frameMs, 100);
+    this.frameFloor = Math.min(this.frameFloor * 1.002 + 0.02, ms);
+    this.frameEma += (ms - this.frameEma) * 0.05;
+    if (this.frameEma > Math.max(24, this.frameFloor * 1.7)) {
       if (++this.slowFrames > 90) {
         this.downgraded = true;
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));

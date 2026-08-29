@@ -159,9 +159,12 @@ export class CinematicDofPass extends Pass {
 
   private w = 2;
   private h = 2;
+  /** Quality-tier scale applied to every pyramid target (0..1]. */
+  private resolutionScale: number;
 
-  constructor() {
+  constructor(resolutionScale = 1) {
     super("CinematicDofPass");
+    this.resolutionScale = resolutionScale;
     (this as unknown as { needsDepthTexture: boolean }).needsDepthTexture = true;
 
     const cocUniforms = () => ({
@@ -211,13 +214,19 @@ export class CinematicDofPass extends Pass {
     }
   }
 
+  private pyramidSizes(): [number, number][] {
+    const sw = this.w * this.resolutionScale;
+    const sh = this.h * this.resolutionScale;
+    const dim = (v: number, div: number) => Math.max(1, Math.floor(v / div));
+    return [
+      [dim(sw, 2), dim(sh, 2)],
+      [dim(sw, 4), dim(sh, 4)],
+      [dim(sw, 8), dim(sh, 8)],
+    ];
+  }
+
   private allocate(): void {
-    const w2 = Math.max(1, Math.floor(this.w / 2));
-    const h2 = Math.max(1, Math.floor(this.h / 2));
-    const w4 = Math.max(1, Math.floor(this.w / 4));
-    const h4 = Math.max(1, Math.floor(this.h / 4));
-    const w8 = Math.max(1, Math.floor(this.w / 8));
-    const h8 = Math.max(1, Math.floor(this.h / 8));
+    const [[w2, h2], [w4, h4], [w8, h8]] = this.pyramidSizes();
     this.rtPre = makeRT(w2, h2);
     this.rtPing = makeRT(w2, h2);
     this.rtA = makeRT(w2, h2);
@@ -229,12 +238,14 @@ export class CinematicDofPass extends Pass {
   }
 
   override setSize(width: number, height: number): void {
+    if (width === this.w && height === this.h) return;
     this.w = width;
     this.h = height;
-    for (const rt of [this.rtPre, this.rtPing, this.rtA, this.rtB, this.rtCPing, this.rtC, this.rtDPing, this.rtD]) {
-      rt?.dispose();
-    }
-    this.allocate();
+    // resize in place — no dispose/reallocate churn during window drags
+    const [[w2, h2], [w4, h4], [w8, h8]] = this.pyramidSizes();
+    for (const rt of [this.rtPre, this.rtPing, this.rtA, this.rtB]) rt.setSize(w2, h2);
+    for (const rt of [this.rtCPing, this.rtC]) rt.setSize(w4, h4);
+    for (const rt of [this.rtDPing, this.rtD]) rt.setSize(w8, h8);
   }
 
   override setDepthTexture(depthTexture: Texture): void {

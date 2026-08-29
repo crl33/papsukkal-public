@@ -19,7 +19,9 @@ export const QUALITY_TIERS: Record<QualityTier["name"], QualityTier> = {
 export function pickInitialTier(): QualityTier {
   const params = new URLSearchParams(location.search);
   const forced = params.get("quality");
-  if (forced && forced in QUALITY_TIERS) return QUALITY_TIERS[forced as QualityTier["name"]];
+  if (forced && Object.hasOwn(QUALITY_TIERS, forced)) {
+    return QUALITY_TIERS[forced as QualityTier["name"]];
+  }
   // heuristic first guess; App additionally drops resolution at runtime if
   // sustained frame times prove the guess too optimistic
   const dpr = window.devicePixelRatio ?? 1;

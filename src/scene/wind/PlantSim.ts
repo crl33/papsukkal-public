@@ -154,7 +154,9 @@ export class PlantSim {
       const maxBend = params[p + 6];
 
       wind.sample(params[p], params[p + 1], t, ws);
-      this.gustOut[i] = ws.gust;
+      // per-species turbulence sensitivity scales the shimmer amplitude the
+      // GPU flutter reads — tiny plants feel the fine-scale air more
+      this.gustOut[i] = ws.gust * this.turb[i];
 
       let bx = dyn[d];
       let bz = dyn[d + 1];
@@ -220,9 +222,13 @@ export class PlantSim {
       }
       output[o] = bx;
       output[o + 1] = bz;
-      // head nod: pitch about the axis perpendicular to lag direction
-      output[o + 2] = clampAbs(dyn[d + 4] * gain * 60, 0.22);
-      output[o + 3] = clampAbs(dyn[d + 5] * gain * 60, 0.22);
+      // Head nod: the shader applies [o+2] as rotation about world X and
+      // [o+3] about world Z. A rotation about X tips the head along ±Z and
+      // vice versa, so the Z-lag (hz) drives the X-axis channel and the
+      // X-lag (hx, negated) drives the Z-axis channel — the head then tips
+      // WITHIN its plane of motion, lagging behind the stem.
+      output[o + 2] = clampAbs(dyn[d + 5] * gain * 60, 0.22);
+      output[o + 3] = clampAbs(-dyn[d + 4] * gain * 60, 0.22);
     }
   }
 }

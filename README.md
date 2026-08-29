@@ -42,6 +42,7 @@ First e2e run may need `npx playwright install chromium`.
 
 ## Accessibility & performance
 
-`prefers-reduced-motion` keeps the full scene and stills the breeze.
+`prefers-reduced-motion` keeps the full scene and reduces the breeze to a
+near-still whisper (12% intensity).
 Quality tiers adapt pixel ratio, DOF resolution and vegetation density to
 the device — the hero composition is never reduced.

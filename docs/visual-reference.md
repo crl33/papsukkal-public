@@ -6,8 +6,9 @@ teal/magenta/orange grade. The photograph itself is authoritative; this document
 records the measurements and decisions derived from it.
 
 > The reference photograph is **not** committed to this public repository
-> (unknown license). For the dev comparison overlay, drop the file at
-> `dev-assets/reference.jpg` (gitignored) — see `docs/dev-workflow.md`.
+> (unknown license). For the dev comparison overlay, drag & drop the image
+> onto the running dev page (it persists in localStorage); optionally keep a
+> copy in `dev-assets/` (gitignored) — see `docs/dev-workflow.md`.
 
 Image aspect ratio: ~1.51:1 (≈1242×822). All coordinates below are normalized
 (x: 0 = left → 1 = right, y: 0 = top → 1 = bottom).

@@ -11,6 +11,7 @@ npm run test:e2e   # playwright: render/animate/reduced-motion/responsive
 npm run shots      # deterministic screenshots for every framing → shots/
 node scripts/motion-probe.mjs   # stroboscopic motion frames + stability probe
 node scripts/perf-probe.mjs [WxHxDPR] [url]   # fps / draw calls
+node scripts/video-probe.mjs    # 25s live recording (shots/video/) for motion QA
 ```
 
 ## Deterministic capture mode

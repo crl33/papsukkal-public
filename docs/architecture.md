@@ -39,6 +39,7 @@ scripts/
   shots.mjs                    deterministic multi-viewport screenshot capture
   motion-probe.mjs             stroboscopic motion frames + stability probe
   perf-probe.mjs               FPS / draw-call measurement
+  video-probe.mjs              25s live-playback recording for motion QA
 tests/
   unit/                        wind, sim, prng (vitest)
   e2e/smoke.spec.ts            render/animate/reduced-motion/responsive (playwright)
@@ -93,7 +94,7 @@ vignette, fine grain.
 
 There is no `sin(time)` vegetation anywhere (invariant F): all periodic-ish
 texture comes from noise, and the only wave primitives (GPU petal flutter)
-sum smooth triangle waves at four incommensurate frequencies with per-plant
+sum smooth triangle waves at three incommensurate frequencies with per-plant
 and per-vertex phases — the composite never visibly repeats.
 
 ## Plant mechanics (`PlantSim`)
@@ -132,7 +133,7 @@ heroes consume it as uniforms, instanced systems as instanced attributes.
 
 ## Rendering tiers
 
-- **Heroes** (~45 meshes): individually built geometry, unique art
+- **Heroes** (~38 meshes): individually built geometry, unique art
   direction, per-mesh materials (one shared shader program).
 - **Instanced systems**: filler stems, mid-distance soft blooms, foliage
   tufts — one draw call each, per-instance bend/gust/tint attributes.

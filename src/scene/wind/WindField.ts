@@ -46,6 +46,12 @@ export class WindField {
   private nCross: Noise2;
   private nTurb: Noise2;
 
+  // per-instant trig cache (see sample())
+  private trigT = Number.NaN;
+  private trigTheta = 0;
+  private trigDx = 1;
+  private trigDz = 0;
+
   constructor(opts: WindFieldOptions = {}) {
     const seed = opts.seed ?? 1337;
     this.baseSpeed = opts.baseSpeed ?? 0.32;
@@ -69,9 +75,18 @@ export class WindField {
    * `out` is written in place to avoid allocation in hot loops.
    */
   sample(x: number, z: number, t: number, out: WindSample): WindSample {
-    const theta = this.direction(t);
-    const dx = Math.cos(theta);
-    const dz = -Math.sin(theta);
+    // direction() is pure in t — cache the trig for the (very common) case of
+    // many plants sampled at the same instant (one 120Hz substep)
+    if (t !== this.trigT) {
+      const theta = this.direction(t);
+      this.trigT = t;
+      this.trigTheta = theta;
+      this.trigDx = Math.cos(theta);
+      this.trigDz = -Math.sin(theta);
+    }
+    const theta = this.trigTheta;
+    const dx = this.trigDx;
+    const dz = this.trigDz;
 
     // --- coordinate along/across wind direction
     const along = x * dx + z * dz;
@@ -85,9 +100,13 @@ export class WindField {
     const crossMod = 0.65 + 0.35 * this.nCross(across * 0.5 + 3.1, t * 0.11);
     const gust = (0.65 * g1 + 0.75 * g2) * crossMod;
 
-    // --- medium turbulence: advected FBM (2 octaves, hand-rolled for speed)
-    const ax = x - dx * t * this.gustSpeed * 0.4;
-    const az = z - dz * t * this.gustSpeed * 0.4;
+    // --- medium turbulence: advected FBM (2 octaves, hand-rolled for speed).
+    // Advection uses the FIXED mean direction: an offset proportional to
+    // t·direction(t) would make the sampling velocity grow without bound as
+    // the direction meanders (d/dt[t·cosθ(t)] has a t·θ′ term), degrading
+    // into flicker after minutes. The meander still enters via `phi` below.
+    const ax = x - MEAN_DX * t * this.gustSpeed * 0.4;
+    const az = z - MEAN_DZ * t * this.gustSpeed * 0.4;
     const t1 = this.nTurb(ax * 0.9, az * 0.9 + t * 0.05);
     const t2 = this.nTurb(ax * 2.3 + 17.1, az * 2.3 - t * 0.09);
     const turb = t1 * 0.7 + t2 * 0.3;
@@ -103,6 +122,10 @@ export class WindField {
     return out;
   }
 }
+
+/** Fixed mean wind heading (0.35 rad) used for advection offsets. */
+const MEAN_DX = Math.cos(0.35);
+const MEAN_DZ = -Math.sin(0.35);
 
 /** Shape [-1,1] noise into gust crests: mostly calm, occasional smooth peaks. */
 function ridge(n: number): number {

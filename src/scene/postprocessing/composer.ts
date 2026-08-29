@@ -25,6 +25,7 @@ const GRADE_FRAG = /* glsl */ `
   uniform float vignette;
   uniform float grain;
   uniform float contrast;
+  uniform float grainTime;
 
   float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -55,14 +56,15 @@ const GRADE_FRAG = /* glsl */ `
     float vig = 1.0 - smoothstep(0.35, 0.95, length(q) * 1.25) * vignette;
     c *= vig;
 
-    // fine static-free grain
-    c += (hash12(uv * vec2(1920.0, 1080.0) + fract(time) * 43.7) - 0.5) * grain;
+    // fine static-free grain (grainTime is sim-driven → deterministic mode
+    // renders bit-identical frames)
+    c += (hash12(uv * vec2(1920.0, 1080.0) + fract(grainTime) * 43.7) - 0.5) * grain;
 
     outputColor = vec4(c, inputColor.a);
   }
 `;
 
-class GradeEffect extends Effect {
+export class GradeEffect extends Effect {
   constructor() {
     super("GradeEffect", GRADE_FRAG, {
       blendFunction: BlendFunction.SRC,
@@ -72,8 +74,14 @@ class GradeEffect extends Effect {
         ["vignette", new Uniform(0.42)],
         ["grain", new Uniform(0.012)],
         ["contrast", new Uniform(1.06)],
+        ["grainTime", new Uniform(0)],
       ]),
     });
+  }
+
+  /** Drive grain from simulation time so deterministic captures reproduce. */
+  setGrainTime(t: number): void {
+    this.uniforms.get("grainTime")!.value = t;
   }
 }
 
@@ -88,12 +96,12 @@ export function createPostChain(
   renderer: WebGLRenderer,
   scene: Scene,
   camera: PerspectiveCamera,
-  _quality: { dofResolutionScale: number },
+  quality: { dofResolutionScale: number },
 ): PostChain {
   const composer = new EffectComposer(renderer, { frameBufferType: HalfFloatType });
   composer.addPass(new RenderPass(scene, camera));
 
-  const dof = new CinematicDofPass();
+  const dof = new CinematicDofPass(quality.dofResolutionScale);
   const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
   const grade = new GradeEffect();
 

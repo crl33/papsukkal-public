@@ -83,6 +83,11 @@ export interface PetalRingOptions {
   flutter?: number;
   tipNotch?: number;
   jitter?: number;
+  /** aData head flag (default 1 = rigid head). Sprig blooms pass 0. */
+  headFlag?: number;
+  /** aData stem-height parameter (default 1). Used with headFlag 0 so the
+   * bloom bends with the stem envelope at its attach height. */
+  sOverride?: number;
 }
 
 /** Adds a radial ring of petals in head-local space (center at origin, facing +Y). */
@@ -115,7 +120,12 @@ export function addPetalRing(b: GeomBuilder, rng: Rng, o: PetalRingOptions): voi
         pos.set(x, y, va * half);
         return {
           color: o.colorFn(u, va, i),
-          data: { s: 1, head: 1, flutter: (o.flutter ?? 0.5) * u * u, phase },
+          data: {
+            s: o.sOverride ?? 1,
+            head: o.headFlag ?? 1,
+            flutter: (o.flutter ?? 0.5) * u * u,
+            phase,
+          },
         };
       });
     });
@@ -134,6 +144,8 @@ export function addCenterDome(
   height: number,
   colorFn: (r: number, ang: number) => Color,
   flutter = 0.06,
+  headFlag = 1,
+  sOverride = 1,
 ): void {
   b.grid(6, 10, (u, v, pos, normal) => {
     const r = u * radius;
@@ -142,7 +154,7 @@ export function addCenterDome(
     pos.set(Math.cos(ang) * r, y, Math.sin(ang) * r);
     const n = new Vector3(Math.cos(ang) * u, 1.2 * (1 - u * 0.5), Math.sin(ang) * u).normalize();
     normal.copy(n);
-    return { color: colorFn(u, ang), data: { s: 1, head: 1, flutter: flutter * u, phase: ang } };
+    return { color: colorFn(u, ang), data: { s: sOverride, head: headFlag, flutter: flutter * u, phase: ang } };
   });
 }
 
@@ -427,6 +439,8 @@ export function buildMicroSprig(
     } else {
       // tiny open rosette: 5 rounded petals
       _m.makeRotationFromEuler(new Euler(rng.range(0.7, 1.35), rng.range(-0.6, 0.6), 0, "YXZ")).setPosition(px, y, pz);
+      // sprig blooms bend with the stem envelope at their attach height —
+      // no rigid pivot (each pedicel carries its own bloom)
       b.section(_m, () => {
         addPetalRing(b, rng, {
           count: 5,
@@ -439,12 +453,12 @@ export function buildMicroSprig(
           nu: 2,
           nv: 1,
           flutter: 0.55,
+          headFlag: 0,
+          sOverride: sAvg,
           colorFn: (u) => col.clone().multiplyScalar(0.8 + 0.45 * u),
         });
-        addCenterDome(b, bloomR * 0.3, bloomR * 0.2, () => srgb(kind === "blue" ? "#dfe6ff" : "#2a0a3a"));
+        addCenterDome(b, bloomR * 0.3, bloomR * 0.2, () => srgb(kind === "blue" ? "#dfe6ff" : "#2a0a3a"), 0.06, 0, sAvg);
       });
-      // override head flags — sprig blooms bend with the stem, no rigid pivot
-      // (handled by marking head=0 in ring? simpler: they are small; keep head flag 0)
     }
   }
   return { builder: b, headPivotY: topY };
