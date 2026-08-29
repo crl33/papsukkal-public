@@ -6,9 +6,14 @@
  *    never moves.
  *  - RIGID HEAD: pixels within the head radius travel with the full bend
  *    plus a small rotation about the (displaced) head center, computed in
- *    aspect-corrected space so the rotation doesn't shear.
+ *    aspect-corrected space so the rotation doesn't shear. The head weight
+ *    ramps gently across the whole head disc so head and stem stay one
+ *    continuous structure — no shear band at the junction.
  *  - Uniform uBend comes from the copied V1 PlantSim — wind controls
  *    MOTION only; appearance is the photograph's own pixels.
+ *
+ * Debug modes (uDebugMode): 0 normal · 1 alpha view · 2 deformation-weight
+ * heatmap (red = moves fully, blue = anchored).
  *
  * Explicitly NOT a whole-image UV wobble: deformation is anchored,
  * localized and per-layer (spec §10).
@@ -22,6 +27,8 @@ import {
 } from "three";
 import { IMG_ASPECT } from "../config/layers";
 
+const A = IMG_ASPECT.toFixed(5);
+
 const VERT = /* glsl */ `
   uniform vec2 uRoot;
   uniform vec2 uHead;
@@ -29,6 +36,7 @@ const VERT = /* glsl */ `
   uniform vec2 uBend;
   uniform float uRot;
   varying vec2 vUv;
+  varying float vW;
 
   void main() {
     vUv = uv;
@@ -40,24 +48,26 @@ const VERT = /* glsl */ `
     float len2 = max(dot(axis, axis), 1e-6);
     float t = clamp(dot(img - uRoot, axis) / len2, 0.0, 1.0);
     float env = t * t * (0.4 + 0.6 * t); // V1's root-fixed bend envelope
-    float headD = distance(vec2(img.x * ${IMG_ASPECT.toFixed(5)}, img.y),
-                           vec2(uHead.x * ${IMG_ASPECT.toFixed(5)}, uHead.y)) /
-                  (uHeadR * ${IMG_ASPECT.toFixed(5)});
-    float headW = 1.0 - smoothstep(0.55, 1.35, headD);
-    float W = max(env, headW);
+    float headD = distance(vec2(img.x * ${A}, img.y), vec2(uHead.x * ${A}, uHead.y)) /
+                  (uHeadR * ${A});
+    // gentle ramp across the whole disc: head and stem remain continuous.
+    // The root-guard forces W to zero at the anchor no matter how large the
+    // head disc is — "zero motion here, ever" holds for every layer.
+    float headW = 1.0 - smoothstep(0.3, 1.35, headD);
+    float W = max(env, headW * smoothstep(0.0, 0.22, t));
+    vW = W;
 
     img += uBend * W;
 
-    // rigid head rotation about the displaced head center (aspect-corrected)
-    float rw = headW;
-    if (rw > 0.001) {
+    // rigid-ish head rotation about the displaced head center (aspect-corrected)
+    if (headW > 0.001) {
       vec2 hc = uHead + uBend;
-      vec2 relA = vec2((img.x - hc.x) * ${IMG_ASPECT.toFixed(5)}, img.y - hc.y);
-      float ang = uRot * rw;
+      vec2 relA = vec2((img.x - hc.x) * ${A}, img.y - hc.y);
+      float ang = uRot * headW;
       float ca = cos(ang);
       float sa = sin(ang);
       vec2 rotA = vec2(relA.x * ca - relA.y * sa, relA.x * sa + relA.y * ca);
-      img = hc + vec2(rotA.x / ${IMG_ASPECT.toFixed(5)}, rotA.y);
+      img = hc + vec2(rotA.x / ${A}, rotA.y);
     }
 
     pos.x = img.x;
@@ -69,9 +79,21 @@ const VERT = /* glsl */ `
 const FRAG = /* glsl */ `
   uniform sampler2D uTex;
   uniform float uOpacity;
+  uniform float uDebugMode;
   varying vec2 vUv;
+  varying float vW;
   void main() {
     vec4 c = texture2D(uTex, vUv);
+    if (uDebugMode > 1.5) {
+      // deformation-weight heatmap over the layer's own alpha
+      vec3 heat = mix(vec3(0.1, 0.2, 1.0), vec3(1.0, 0.15, 0.1), vW);
+      gl_FragColor = vec4(heat, max(c.a, 0.15));
+      return;
+    }
+    if (uDebugMode > 0.5) {
+      gl_FragColor = vec4(vec3(c.a), 1.0);
+      return;
+    }
     if (c.a * uOpacity < 0.004) discard;
     gl_FragColor = vec4(c.rgb, c.a * uOpacity);
   }
@@ -88,6 +110,7 @@ export function createLayerMaterial(tex: Texture, opaque: boolean): ShaderMateri
     uniforms: {
       uTex: { value: tex },
       uOpacity: { value: 1 },
+      uDebugMode: { value: 0 },
       uRoot: { value: new Vector2(0.5, 1) },
       uHead: { value: new Vector2(0.5, 0.5) },
       uHeadR: { value: 0.001 },

@@ -41,7 +41,10 @@ export class App {
 
     const windParam = params.get("wind");
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const intensity = windParam !== null ? Number(windParam) : reduced ? 0.12 : 1;
+    // det mode pins intensity (deterministic captures must not depend on the
+    // live media-query state); otherwise reduced-motion stills the breeze
+    const intensity =
+      windParam !== null ? Number(windParam) : this.fixedTime !== null ? 1 : reduced ? 0.12 : 1;
 
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.toneMapping = NoToneMapping;
@@ -58,8 +61,13 @@ export class App {
 
     const loader = new TextureLoader();
     let pending = layers.length;
+    const done = () => {
+      if (--pending === 0) this.start(onReady);
+    };
     for (const def of layers) {
-      loader.load(`${import.meta.env.BASE_URL}${def.file}`, (tex: Texture) => {
+      loader.load(
+        `${import.meta.env.BASE_URL}${def.file}`,
+        (tex: Texture) => {
         // deliberate passthrough: no color-space decode anywhere. The custom
         // fragment shader does no lighting math, so leaving the texture
         // undecoded means the photograph's sRGB bytes reach the canvas
@@ -69,13 +77,21 @@ export class App {
         const lm = new LayerMesh(def, tex);
         this.layerMeshes.push(lm);
         this.scene.add(lm.mesh);
-        if (def.rig) {
-          const mech = MECHANICS[def.rig.mechanics] ?? MECHANICS.cosmosHero;
-          const [wx, wz, height] = def.rig.windPos;
-          this.simIndices.set(def.id, this.sim.addPlant(wx, wz, height, mech, 7000 + def.order));
-        }
-        if (--pending === 0) this.start(onReady);
-      });
+          if (def.rig) {
+            const mech = MECHANICS[def.rig.mechanics] ?? MECHANICS.cosmosHero;
+            const [wx, wz, height] = def.rig.windPos;
+            this.simIndices.set(def.id, this.sim.addPlant(wx, wz, height, mech, 7000 + def.order));
+          }
+          done();
+        },
+        undefined,
+        (err) => {
+          // fail loudly, not with a silent black screen: continue with the
+          // remaining layers so the page still shows the photograph
+          console.error(`[v2] layer texture failed to load: ${def.file}`, err);
+          done();
+        },
+      );
     }
 
     this.handleResize();
@@ -84,11 +100,13 @@ export class App {
       if (this.fixedTime !== null) this.renderFrame();
     });
 
-    window
-      .matchMedia("(prefers-reduced-motion: reduce)")
-      .addEventListener("change", (e) => {
-        if (windParam === null) this.wind.intensity = e.matches ? 0.12 : 1;
-      });
+    if (this.fixedTime === null) {
+      window
+        .matchMedia("(prefers-reduced-motion: reduce)")
+        .addEventListener("change", (e) => {
+          if (windParam === null) this.wind.intensity = e.matches ? 0.12 : 1;
+        });
+    }
   }
 
   private start(onReady: () => void): void {
@@ -149,7 +167,8 @@ export class App {
       const idx = this.simIndices.get(lm.def.id);
       if (idx === undefined) continue;
       const o = idx * 4;
-      lm.setBend(this.sim.output[o], this.sim.output[o + 1]);
+      // output[o+3] is the head-lag oscillator's image-plane rotation channel
+      lm.setBend(this.sim.output[o], this.sim.output[o + 1], this.sim.output[o + 3]);
     }
   }
 

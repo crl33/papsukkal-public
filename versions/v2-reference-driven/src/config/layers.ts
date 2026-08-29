@@ -144,7 +144,7 @@ export const layers: LayerDef[] = [
   {
     id: "fg-red-left",
     file: "reference/layers/fg-red-left.png",
-    rect: [0.13, 0.44, 0.21, 0.24],
+    rect: [0.112, 0.428, 0.242, 0.268],
     order: 20,
     rig: {
       root: [0.2335, 0.675],
@@ -159,7 +159,7 @@ export const layers: LayerDef[] = [
   {
     id: "fg-crimson-c",
     file: "reference/layers/fg-crimson-c.png",
-    rect: [0.475, 0.68, 0.245, 0.27],
+    rect: [0.42, 0.655, 0.3, 0.295],
     order: 21,
     rig: {
       root: [0.575, 0.945],
@@ -174,7 +174,7 @@ export const layers: LayerDef[] = [
   {
     id: "fg-yellow-br",
     file: "reference/layers/fg-yellow-br.png",
-    rect: [0.7, 0.72, 0.23, 0.28],
+    rect: [0.685, 0.72, 0.257, 0.28],
     order: 22,
     rig: {
       root: [0.805, 0.995],
